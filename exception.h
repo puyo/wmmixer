@@ -16,25 +16,23 @@
 #include <string.h>
 
 //--------------------------------------------------------------------
-class Exception
-{
- protected:
-  char* error_message_;
-  
- public:
-  Exception();
-  Exception(const Exception&);
-  virtual ~Exception();
-  char* getErrorMessage() const;
+class Exception {
+protected:
+    char* error_message_;
+
+public:
+    Exception();
+    Exception(const Exception&);
+    virtual ~Exception();
+    char* getErrorMessage() const;
 };
 
 
 //--------------------------------------------------------------------
-class MixerDeviceException : public Exception
-{
- public:
-  MixerDeviceException(char *);
-  //  virtual ~MixerDeviceException();
+class MixerDeviceException : public Exception {
+public:
+    MixerDeviceException(char *);
+    //  virtual ~MixerDeviceException();
 };
 
 #endif _exception_h__

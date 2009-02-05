@@ -33,54 +33,53 @@
 #define RPTINTERVAL   5
 
 
-class WMMixer
-{
- protected:
+class WMMixer {
+protected:
 
-  // Mixer
-  MixCtl *mixctl_;
+    // Mixer
+    MixCtl *mixctl_;
 
-  char     mixer_device_[256];
-  unsigned num_channels_;
-  unsigned current_channel_;
-  unsigned current_channel_left_;
-  unsigned current_channel_right_;
-  bool     current_recording_;
-  bool     current_show_recording_;
+    char     mixer_device_[256];
+    unsigned num_channels_;
+    unsigned current_channel_;
+    unsigned current_channel_left_;
+    unsigned current_channel_right_;
+    bool     current_recording_;
+    bool     current_show_recording_;
 
-  XHandler *xhandler_;
+    XHandler *xhandler_;
 
-  unsigned *channel_list_;
+    unsigned *channel_list_;
 
-  int repeat_timer_;
+    int repeat_timer_;
 
-  // For draggable volume control
-  bool dragging_;
+    // For draggable volume control
+    bool dragging_;
 // Default scroll amount
-  int wheel_scroll_;
+    int wheel_scroll_;
 
-  // Input/Output
-  void readConfigurationFile();
-  void displayVersion(void);
-  void displayUsage(const char*);
-  void checkVol(bool);
+    // Input/Output
+    void readConfigurationFile();
+    void displayVersion(void);
+    void displayUsage(const char*);
+    void checkVol(bool);
 
-  void motionEvent(XMotionEvent *xev);
-  void releaseEvent(XButtonEvent *xev);
-  void pressEvent(XButtonEvent *xev);
-  void parseArgs(int , char **);
+    void motionEvent(XMotionEvent *xev);
+    void releaseEvent(XButtonEvent *xev);
+    void pressEvent(XButtonEvent *xev);
+    void parseArgs(int , char **);
 
-  void initMixer();
-  void initXHandler();
+    void initMixer();
+    void initXHandler();
 
-  void updateDisplay();
+    void updateDisplay();
 
- public:
-  WMMixer();
-  ~WMMixer();
+public:
+    WMMixer();
+    ~WMMixer();
 
-  void init(int, char **);
-  void loop();
+    void init(int, char **);
+    void loop();
 };
 
 
