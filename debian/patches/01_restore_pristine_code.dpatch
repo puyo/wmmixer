@@ -1,0 +1,77 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 01_restore_pristine_code.dpatch by Sandro Tosi <matrixhasu@gmail.com>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: New patch generated from wmmixer 1.5-8 diff.gz
+
+@DPATCH@
+
+--- wmmixer-1.5.orig/README
++++ wmmixer-1.5/README
+@@ -82,10 +82,10 @@
+ to reduce the size of the window to 56x56 pixels.
+ The "-position position" option has also been added, so you can push
+ wmcdplay off the edge of the screen while it gets swallowed.
+-To put wmmount in your Wharf, add the following line in the appropriate
++To put wmmixer in your Wharf, add the following line in the appropriate
+ part of your .steprc
+ 
+-*Wharf wmmixer nil MaxSwallow "wmmount" wmmixer -a -g -0-0 &
++*Wharf wmmixer nil MaxSwallow "wmmixer" wmmixer -a -g -0-0 &
+ 
+ It is also possible (by editing and recompiling the afterstep sources),
+ to make Wharf handle the new 56x56 pixel window properly - yes, I add
+--- wmmixer-1.5.orig/mixctl.h
++++ wmmixer-1.5/mixctl.h
+@@ -23,8 +23,8 @@
+ #ifdef __NetBSD__
+ #include <soundcard.h>
+ #endif
+-#ifdef __FreeBSD__
+-#include <machine/soundcard.h>
++#if defined (__FreeBSD__) || defined(__FreeBSD_kernel__)
++#include <sys/soundcard.h>
+ #endif
+ #ifdef __linux__
+ #include <linux/soundcard.h>
+--- wmmixer-1.5.orig/mixctl.cc
++++ wmmixer-1.5/mixctl.cc
+@@ -243,16 +243,16 @@
+ //----------------------------------------------------------------------
+ bool MixCtl::hasChanged()
+ {
+-  struct mixer_info mixer_info;
+-  ioctl(mixfd, SOUND_MIXER_INFO, &mixer_info);
++  struct mixer_info mixer_info1;
++  ioctl(mixfd, SOUND_MIXER_INFO, &mixer_info1);
+      
+-  if (mixer_info.modify_counter == modify_counter)
++  if (mixer_info1.modify_counter == modify_counter)
+     {
+       return false;
+     }
+   else 
+     {
+-      modify_counter = mixer_info.modify_counter;
++      modify_counter = mixer_info1.modify_counter;
+       return true;
+     }
+ }
+--- wmmixer-1.5.orig/exception.h
++++ wmmixer-1.5/exception.h
+@@ -37,4 +37,4 @@
+   //  virtual ~MixerDeviceException();
+ };
+ 
+-#endif _exception_h__
++#endif //_exception_h__
+--- wmmixer-1.5.orig/xhandler.cc
++++ wmmixer-1.5/xhandler.cc
+@@ -24,6 +24,7 @@
+   strcpy(backcolor_name_, BACKCOLOR);
+ 
+   button_state_ = 0;
++  icon_list_ = NULL;
+ }
+ 
+ //--------------------------------------------------------------------

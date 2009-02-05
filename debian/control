@@ -1,0 +1,15 @@
+Source: wmmixer
+Section: x11
+Priority: optional
+Maintainer: Sandro Tosi <matrixhasu@gmail.com>
+Build-Depends: debhelper (>= 5), libx11-dev, libxext-dev, libxpm-dev, dpatch
+Standards-Version: 3.7.3
+
+Package: wmmixer
+Architecture: any
+Depends: ${shlibs:Depends}
+Suggests: wmaker | afterstep
+Description: mixer application designed for WindowMaker
+ There's  nothing in the  program that  makes it  require WindowMaker,
+ except  maybe  the  NeXTStep  look  and the  fact  that  it  properly
+ docks. It can be used with other window managers without problems.

@@ -1,0 +1,57 @@
+#!/usr/bin/make -f
+# This is a -*- makefile -*-
+# Modified from the sample debian/rules that uses debhelper.
+# GNU copyright 1998 by Marcelo Magallon.
+# GNU copyright 1997 by Joey Hess.
+
+#export DH_VERBOSE=1
+
+include /usr/share/dpatch/dpatch.make
+
+CXXFLAGS = -Wall -g
+ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
+  CXXFLAGS += -O0
+else
+  CXXFLAGS += -O2
+endif
+
+build: build-stamp
+build-stamp: patch-stamp
+	dh_testdir
+	$(MAKE) CXXFLAGS="$(CXXFLAGS)"
+	touch build-stamp
+
+clean: unpatch
+	dh_testdir
+	dh_testroot
+	rm -f build-stamp
+	$(MAKE) clean
+	dh_clean
+
+install: build
+	dh_testdir
+	dh_testroot
+	dh_clean -k
+	dh_installdirs
+	$(MAKE) prefix=/usr DESTDIR=$(CURDIR)/debian/wmmixer install
+
+binary-indep: build install
+
+binary-arch: build install
+	dh_testdir
+	dh_testroot
+	dh_installchangelogs	CHANGES
+	dh_installdocs		README
+	dh_installexamples	home.wmmixer
+	dh_installmenu
+	dh_strip
+	dh_compress
+	dh_fixperms
+	dh_installdeb
+	dh_shlibdeps
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+
+binary: binary-indep binary-arch
+.PHONY: build clean binary-indep binary-arch binary install
