@@ -8,9 +8,14 @@ mandir      = ${prefix}/share/man
 DESTDIR     =
 
 CXX	    = g++
-CXXFLAGS    = -O -Wall
+CXXFLAGS    = -O -Wall -Wno-write-strings -Wno-unused-variable
 EXTRA_LIBS  = -L/usr/X11R6/lib -lX11 -lXpm -lXext
 
+ifdef OSS4 # OSS4=1 make
+CXXFLAGS += -I/usr/lib/oss/include/sys # debian package 'oss-linux'
+else
+CXXFLAGS += -I/usr/include/linux
+endif
 
 LD 	    = g++
 LDFLAGS     = -o $(EXECUTABLE) $(EXTRA_LIBDIRS) $(EXTRA_LIBS) $(CXXFLAGS)

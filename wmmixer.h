@@ -39,7 +39,7 @@ protected:
     // Mixer
     MixCtl *mixctl_;
 
-    char     mixer_device_[256];
+    char     mixer_device[256];
     unsigned num_channels_;
     unsigned current_channel_;
     unsigned current_channel_left_;

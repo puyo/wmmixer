@@ -11,15 +11,16 @@
 #ifndef __mixctl_h__
 #define __mixctl_h__
 
-
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <string.h>
+#include <cstring>
+#include <string>
+#include <vector>
 #ifdef __NetBSD__
 #include <soundcard.h>
 #endif
@@ -27,13 +28,12 @@
 #include <machine/soundcard.h>
 #endif
 #ifdef __linux__
-#include <linux/soundcard.h>
+#include <soundcard.h>
 #endif
-
 #include "exception.h"
 
 //----------------------------------------------------------------------
-struct _MixerDevice_ {
+typedef struct {
     bool support;
     bool stereo;
     bool recsrc;
@@ -43,35 +43,20 @@ struct _MixerDevice_ {
     int value;
     int mask;
     int muted;
-};
-
-typedef struct _MixerDevice_ MixerDevice;
+    int minvalue;
+    int maxvalue;
+    int ctrl;
+    int timestamp;
+} MixerDevice;
 
 //----------------------------------------------------------------------
 class MixCtl {
-protected:
-    int mixfd;
-    int mixfdopen;
-    char* device_;
-    int muted_;
-
-    unsigned num_devices_;       // maximum number of devices
-    int devmask;         // supported devices
-    int stmask;          // stereo devices
-    int recmask;         // devices which can be recorded from
-    int caps;            // capabilities
-    int recsrc;          // devices which are being recorded from
-    int modify_counter;
-    MixerDevice* mixer_devices_;
-
-    void doStatus();
-
 public:
-    MixCtl(char *dname) throw(MixerDeviceException);
+    MixCtl(char *dname);
     virtual ~MixCtl();
     int readVol(int, bool);
-    int readLeft(int);
-    int readRight(int);
+    int readLeft(int) const;
+    int readRight(int) const;
     void writeVol(int);
 
     void setVol(int, int);
@@ -83,20 +68,42 @@ public:
     void writeRec();
     void setRec(int, bool);
 
-    char *getDevName();
-    unsigned getNrDevices();
-    int getCapabilities();
-    bool getSupport(int);
-    bool getStereo(int);
-    bool getRecords(int);
-    char *getName(int);
-    char *getLabel(int);
-    bool hasChanged();
+    const char *getDeviceName() const;
+    unsigned getNumChannels() const;
+    bool getSupport(int) const;
+    bool getStereo(int) const;
+    bool getRecords(int) const;
+    const char *getName(int) const;
+    const char *getLabel(int) const;
+    bool hasChanged() const;
 
-    bool isMuted(int);
+    bool isMuted(int) const;
     void mute(int);
     void unmute(int);
+
+private:
+    void openFD();
+    void getOSSInfo();
+    void loadChannels();
+    void doStatus();
+
+    oss_sysinfo sysinfo;
+    oss_mixerinfo mi;
+
+    int fd;
+    std::string device_name;
+    int mixer_device_number;
+    int muted;
+
+    unsigned num_channels;       // maximum number of devices
+    int devmask;         // supported devices
+    int stmask;          // stereo devices
+    int recmask;         // devices which can be recorded from
+    int caps;            // capabilities
+    int recsrc;          // devices which are being recorded from
+    mutable int modify_counter;
+    typedef std::vector<MixerDevice> ChannelArray;
+    ChannelArray channels;
 };
 
 #endif // __mixctl_h__
-

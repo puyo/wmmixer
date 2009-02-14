@@ -9,38 +9,21 @@
 // See the COPYING file for details.
 
 #include "exception.h"
-
+#include <cstring>
+#include <cerrno>
 
 //--------------------------------------------------------------------
-Exception::Exception() {
-    error_message_ = NULL;
+const char* Exception::getMessage() const {
+    return message.c_str();
 }
 
 //--------------------------------------------------------------------
-Exception::Exception(const Exception& exc) {
-    char* other_message = exc.getErrorMessage();
-
-    if (other_message != NULL) {
-        error_message_ = new char[strlen(other_message)+1];
-        strcpy(error_message_, other_message);
-    } else
-        error_message_ = NULL;
-}
-
-//--------------------------------------------------------------------
-Exception::~Exception() {
-    if (error_message_ != NULL)
-        delete[] error_message_;
-}
-
-//--------------------------------------------------------------------
-char* Exception::getErrorMessage() const {
-    return error_message_;
-}
-
-//--------------------------------------------------------------------
-MixerDeviceException::MixerDeviceException(char* device) {
-    error_message_ = new char[256];
-    strcpy(error_message_, "Unable to open mixer device ");
-    strcat(error_message_, device);
+MixerDeviceException::MixerDeviceException(const char* device, const char* msg) {
+    message = "Mixer device ";
+    message += device;
+    message += " error: ";
+    message += msg;
+    message += " (";
+    message += strerror(errno);
+    message += ")";
 }
