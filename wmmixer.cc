@@ -116,7 +116,7 @@ void WMMixer::initMixer() {
     // Initialize Mixer
     try {
         mixctl_   = new MixCtl(mixer_device);
-    } catch (MixerDeviceException &exc) {
+    } catch (MixerException &exc) {
         std::cerr << NAME << " : " << exc.getMessage() << "'." << std::endl;
         exit(1);
     }
@@ -142,10 +142,9 @@ void WMMixer::checkVol(bool forced = true) {
     else
         xhandler_->setButtonState(xhandler_->getButtonState() & ~BTNMUTE);
 
-
-    mixctl_->readVol(channel_list_[current_channel_], true);
-    unsigned nl   = mixctl_->readLeft(channel_list_[current_channel_]);
-    unsigned nr   = mixctl_->readRight(channel_list_[current_channel_]);
+    mixctl_->readVol(channel_list_[current_channel_]);
+    unsigned nl   = mixctl_->getLeft(channel_list_[current_channel_]);
+    unsigned nr   = mixctl_->getRight(channel_list_[current_channel_]);
     bool     nrec = mixctl_->readRec(channel_list_[current_channel_], true);
 
     if (forced) {
@@ -412,12 +411,12 @@ void WMMixer::pressEvent(XButtonEvent *xev) {
             vr = vl;
             dragging_ = true;
         } else if (xev->button == 4) {
-            vr = mixctl_->readRight(channel_list_[current_channel_]) + wheel_scroll_;
-            vl = mixctl_->readLeft(channel_list_[current_channel_])  + wheel_scroll_;
+            vr = mixctl_->getRight(channel_list_[current_channel_]) + wheel_scroll_;
+            vl = mixctl_->getLeft(channel_list_[current_channel_])  + wheel_scroll_;
 
         } else if (xev->button == 5) {
-            vr = mixctl_->readRight(channel_list_[current_channel_]) - wheel_scroll_;
-            vl = mixctl_->readLeft(channel_list_[current_channel_])  - wheel_scroll_;
+            vr = mixctl_->getRight(channel_list_[current_channel_]) - wheel_scroll_;
+            vl = mixctl_->getLeft(channel_list_[current_channel_])  - wheel_scroll_;
         }
 
         if (vl <= 0)

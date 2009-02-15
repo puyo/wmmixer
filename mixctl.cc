@@ -25,20 +25,40 @@ MixCtl::MixCtl(char *device_name):
 
 void MixCtl::openFD() {
     if ((fd = open(device_name.c_str(), O_RDONLY | O_NONBLOCK)) == -1) {
-        throw MixerDeviceException(device_name.c_str(), "Could not open file");
+        throw MixerException(device_name.c_str(), "Could not open file");
     }
 }
 
 void MixCtl::getOSSInfo() {
     if (ioctl(fd, SNDCTL_SYSINFO, &sysinfo) == -1)
-        throw MixerDeviceException(device_name.c_str(), "Could not get system information");
+        throw MixerException(device_name.c_str(), "Could not get system information");
+}
+
+void MixCtl::newChannel(oss_mixext& ext, int value_mask, int shift) {
+    channels.resize(channels.size() + 1);
+    Channel& channel = channels.back();
+    channel.num      = channels.size() - 1;
+    channel.support  = (ext.flags & MIXF_WRITEABLE) != 0;
+    channel.ctrl     = ext.ctrl;
+    channel.stereo   = ext.type == MIXT_STEREOSLIDER ||
+        ext.type == MIXT_STEREOSLIDER16;
+    channel.records  = ext.flags & MIXF_RECVOL;
+    channel.mask     = 0;
+    channel.name     = ext.id;
+    channel.label    = ext.extname;
+    channel.muted    = 0;
+    channel.minvalue = ext.minvalue;
+    channel.maxvalue = ext.maxvalue;
+    channel.timestamp = ext.timestamp;
+    channel.value_mask = value_mask;
+    channel.shift    = shift;
 }
 
 void MixCtl::loadChannels() {
 #if OSS_VERSION >= 0x040004
     num_channels = mixer_device_number; // must init argument with device number
     if (ioctl(fd, SNDCTL_MIX_NREXT, &num_channels) == -1)
-        throw MixerDeviceException(device_name.c_str(), "Could not read number of channels");
+        throw MixerException(device_name.c_str(), "Could not read number of channels");
 
     //printf("Mixer has %d channels\n", num_channels);
 
@@ -62,27 +82,24 @@ void MixCtl::loadChannels() {
         } else if (!marker_seen) {
             continue;
         }
-        MixerDevice *channel;
 
         switch (ext.type) {
-            case MIXT_SLIDER: // fall through
-            case MIXT_STEREOSLIDER: // fall through
-            case MIXT_STEREOSLIDER16: // fall through
-            case MIXT_MONOSLIDER: // fall through
+            case MIXT_SLIDER:
+                newChannel(ext, 0, ~0);
+                break;
+            case MIXT_STEREODB: // fall through
+            case MIXT_STEREOSLIDER:
+                newChannel(ext, 8, 0xff);
+                break;
+            case MIXT_STEREOSLIDER16:
+                newChannel(ext, 16, 0xffff);
+                break;
+            case MIXT_MONODB: // fall through
+            case MIXT_MONOSLIDER:
+                newChannel(ext, 0, 0xff);
+                break;
             case MIXT_MONOSLIDER16:
-                channels.resize(channels.size() + 1);
-                channel = &channels.back();
-                channel->support  = 1;
-                channel->ctrl     = ext.ctrl;
-                channel->stereo   = ext.type == MIXT_STEREOSLIDER || ext.type == MIXT_STEREOSLIDER16;
-                channel->records  = ext.flags & MIXF_RECVOL;
-                channel->mask     = 0;
-                channel->name     = ext.id;
-                channel->label    = ext.extname;
-                channel->muted    = 0;
-                channel->minvalue = ext.minvalue;
-                channel->maxvalue = ext.maxvalue;
-                channel->timestamp = ext.timestamp;
+                newChannel(ext, 0, 0xffff);
                 break;
             default:
                 break; // control type not supported e.g. mute, on/off, etc.
@@ -98,26 +115,30 @@ void MixCtl::loadChannels() {
     ioctl(fd, SOUND_MIXER_READ_RECMASK, &recmask);
     ioctl(fd, SOUND_MIXER_READ_CAPS, &caps);
 
-    channels = new MixerDevice[num_channels];
+    channels = new Channel[num_channels];
     int mixmask = 1;
 
     for (unsigned count = 0; count < num_channels; count++) {
-        MixerDevice *channel = new MixerDevice;
-        channel->support  = devmask & mixmask;
-        channel->stereo   = stmask  & mixmask;
-        channel->records  = recmask & mixmask;
-        channel->mask     = mixmask;
-        channel->name     = devnames[count];
-        channel->label    = devlabels[count];
-        channel->muted    = 0;
-        channel->minvalue = 0;
-        channel->maxvalue = 256;
+        bool support = devmask & mixmask;
+        if (support) {
+            channels.resize(channels.size() + 1);
+            Channel& channel = channels.back();
+            channel.support  = support;
+            channel.stereo   = stmask  & mixmask;
+            channel.records  = recmask & mixmask;
+            channel.mask     = mixmask;
+            channel.name     = devnames[count];
+            channel.label    = devlabels[count];
+            channel.muted    = 0;
+            channel.minvalue = 0;
+            channel.maxvalue = 256;
+            channel.shift    = 8;
+            channel.value_mask = 0xff;
+        }
         mixmask *= 2;
-
-        channels.push_back(channel);
     }
-    doStatus();
 #endif
+    doStatus();
 }
 
 //----------------------------------------------------------------------
@@ -150,91 +171,111 @@ void MixCtl::doStatus() {
 #if OSS_VERSION < 0x040004
     ioctl(fd, SOUND_MIXER_READ_RECSRC, &recsrc);
 #endif
-    for (unsigned i = 0; i < num_channels; i++) {
-        readVol(i, true);
+    for (unsigned i = 0; i < channels.size(); i++) {
+        readVol(i);
 #if OSS_VERSION < 0x040004
         channels[i].recsrc = (recsrc & channels[i].mask);
 #endif
     }
 }
 
+//----------------------------------------------------------------------
+void MixCtl::printChannel(int chan) {
+    Channel& channel = channels[chan];
+    if (channel.stereo) {
+        printf("Mixer value for %d '%s' is %d (%d,%d)\n", chan, channel.label.c_str(), channel.value, getLeft(chan), getRight(chan));
+    } else {
+        printf("Mixer value for %d '%s' is %d\n", chan, channel.label.c_str(), channel.value);
+    }
+}
 
 //----------------------------------------------------------------------
 // Return volume for a device, optionally reading it from device first.
 // Can be used as a way to avoid calling doStatus().
-int MixCtl::readVol(int dev, bool read) {
-    if (read) {
+void MixCtl::readVol(int chan) {
+    int value;
+    Channel& channel = channels[chan];
 #if OSS_VERSION >= 0x040004
-        MixerDevice& channel = channels[dev];
-        oss_mixer_value val;
-        val.dev = mixer_device_number;
-        val.ctrl = channel.ctrl;
-        val.timestamp = channel.timestamp;
-        ioctl(fd, SNDCTL_MIX_READ, &val);
-        channel.value = val.value * 256 / channel.maxvalue;
-        //printf("Mixer value for %d is %d\n", channel.ctrl, channel.value);
+    oss_mixer_value val;
+    val.dev = mixer_device_number;
+    val.ctrl = channel.ctrl;
+    val.timestamp = channel.timestamp;
+    ioctl(fd, SNDCTL_MIX_READ, &val);
+    channel.value = val.value;
+    printChannel(chan);
 #else
-        ioctl(fd, MIXER_READ(dev), &channels[dev].value);
+    ioctl(fd, MIXER_READ(chan), &channel.value);
 #endif
-    }
-    return channels[dev].value;
 }
 
 //----------------------------------------------------------------------
 // Return left and right componenets of volume for a device.
 // If you are lazy, you can call readVol to read from the device, then these
 // to get left and right values.
-int MixCtl::readLeft(int dev) const {
-    return channels[dev].value % 256;
+int MixCtl::getLeft(int chan) const {
+    const Channel& channel = channels[chan];
+#if OSS_VERSION >= 0x040004
+    return ((channel.value & channel.mask) - channel.minvalue) 
+        * 256 / channel.maxvalue;
+#else
+    return channel.value % 256;
+#endif
 }
 
 //----------------------------------------------------------------------
-int MixCtl::readRight(int dev) const {
-    return channels[dev].value / 256;
+int MixCtl::getRight(int chan) const {
+    const Channel& channel = channels[chan];
+#if OSS_VERSION >= 0x040004
+    return (((channel.value >> channel.shift) & channel.mask)
+            - channel.minvalue) 
+        * 256 / channel.maxvalue;
+#else
+    return channels[chan].value / 256;
+#endif
 }
 
 //----------------------------------------------------------------------
 // Write volume to device. Use setVolume, setLeft and setRight first.
-void MixCtl::writeVol(int dev) {
-    ioctl(fd, MIXER_WRITE(dev), &channels[dev].value);
+void MixCtl::writeVol(int chan) {
+    ioctl(fd, MIXER_WRITE(chan), &channels[chan].value);
 }
 
 //----------------------------------------------------------------------
 // Set volume (or left or right component) for a device. You must call writeVol to write it.
-void MixCtl::setVol(int dev, int value) {
-    channels[dev].value = value;
+void MixCtl::setVol(int chan, int value) {
+    channels[chan].value = value;
 }
 //----------------------------------------------------------------------
-void MixCtl::setBoth(int dev, int l, int r) {
-    channels[dev].value = 256*r+l;
+void MixCtl::setBoth(int chan, int l, int r) {
+    channels[chan].value = 256*r+l;
 }
 //----------------------------------------------------------------------
-void MixCtl::setLeft(int dev, int l) {
+void MixCtl::setLeft(int chan, int l) {
     int r;
-    if (channels[dev].stereo)
-        r = channels[dev].value/256;
+    if (channels[chan].stereo)
+        r = channels[chan].value/256;
     else
         r = l;
-    channels[dev].value = 256*r+l;
+    channels[chan].value = 256*r+l;
 }
 //----------------------------------------------------------------------
-void MixCtl::setRight(int dev, int r) {
+void MixCtl::setRight(int chan, int r) {
     int l;
-    if (channels[dev].stereo)
-        l = channels[dev].value%256;
+    if (channels[chan].stereo)
+        l = channels[chan].value%256;
     else
         l = r;
-    channels[dev].value = 256*r+l;
+    channels[chan].value = 256*r+l;
 }
 
 //----------------------------------------------------------------------
 // Return record source value for a device, optionally reading it from device first.
-bool MixCtl::readRec(int dev, bool read) {
+bool MixCtl::readRec(int chan, bool read) {
     if (read) {
         ioctl(fd, SOUND_MIXER_READ_RECSRC, &recsrc);
-        channels[dev].recsrc = (recsrc & channels[dev].mask);
+        channels[chan].recsrc = (recsrc & channels[chan].mask);
     }
-    return channels[dev].recsrc;
+    return channels[chan].recsrc;
 }
 
 //----------------------------------------------------------------------
@@ -245,14 +286,14 @@ void MixCtl::writeRec() {
 
 //----------------------------------------------------------------------
 // Make a device (not) a record source.
-void MixCtl::setRec(int dev, bool rec) {
+void MixCtl::setRec(int chan, bool rec) {
     if (rec) {
         if (caps & SOUND_CAP_EXCL_INPUT)
-            recsrc = channels[dev].mask;
+            recsrc = channels[chan].mask;
         else
-            recsrc |= channels[dev].mask;
+            recsrc |= channels[chan].mask;
     } else {
-        recsrc &= ~channels[dev].mask;
+        recsrc &= ~channels[chan].mask;
     }
 }
 
@@ -265,24 +306,24 @@ unsigned MixCtl::getNumChannels() const {
     return channels.size();
 }
 //----------------------------------------------------------------------
-bool MixCtl::getSupport(int dev) const {
-    return channels[dev].support;
+bool MixCtl::getSupport(int chan) const {
+    return channels[chan].support;
 }
 //----------------------------------------------------------------------
-bool MixCtl::getStereo(int dev) const {
-    return channels[dev].stereo;
+bool MixCtl::getStereo(int chan) const {
+    return channels[chan].stereo;
 }
 //----------------------------------------------------------------------
-bool MixCtl::getRecords(int dev) const {
-    return channels[dev].records;
+bool MixCtl::getRecords(int chan) const {
+    return channels[chan].records;
 }
 //----------------------------------------------------------------------
-const char* MixCtl::getName(int dev) const {
-    return channels[dev].name;
+const char* MixCtl::getName(int chan) const {
+    return channels[chan].name.c_str();
 }
 //----------------------------------------------------------------------
-const char* MixCtl::getLabel(int dev) const {
-    return channels[dev].label;
+const char* MixCtl::getLabel(int chan) const {
+    return channels[chan].label.c_str();
 }
 
 //----------------------------------------------------------------------

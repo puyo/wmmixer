@@ -18,7 +18,7 @@ const char* Exception::getMessage() const {
 }
 
 //--------------------------------------------------------------------
-MixerDeviceException::MixerDeviceException(const char* device, const char* msg) {
+MixerException::MixerException(const char* device, const char* msg) {
     message = "Mixer device ";
     message += device;
     message += " error: ";

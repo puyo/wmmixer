@@ -25,9 +25,9 @@ protected:
 
 
 //--------------------------------------------------------------------
-class MixerDeviceException : public Exception {
+class MixerException : public Exception {
 public:
-    MixerDeviceException(const char *device, const char *msg);
+    MixerException(const char *device, const char *msg);
 };
 
 #endif

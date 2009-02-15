@@ -38,25 +38,30 @@ typedef struct {
     bool stereo;
     bool recsrc;
     bool records;
-    char *name;
-    char *label;
+    std::string name;
+    std::string label;
     int value;
     int mask;
     int muted;
+#if OSS_VERSION >= 0x040004
+    int num;
     int minvalue;
     int maxvalue;
     int ctrl;
     int timestamp;
-} MixerDevice;
+    int shift;
+    int value_mask;
+#endif
+} Channel;
 
 //----------------------------------------------------------------------
 class MixCtl {
 public:
     MixCtl(char *dname);
     virtual ~MixCtl();
-    int readVol(int, bool);
-    int readLeft(int) const;
-    int readRight(int) const;
+    void readVol(int);
+    int getLeft(int) const;
+    int getRight(int) const;
     void writeVol(int);
 
     void setVol(int, int);
@@ -86,9 +91,13 @@ private:
     void getOSSInfo();
     void loadChannels();
     void doStatus();
+    void newChannel(oss_mixext& ext, int value_mask, int shift);
+    void printChannel(int chan);
 
+#if OSS_VERSION >= 0x040004
     oss_sysinfo sysinfo;
     oss_mixerinfo mi;
+#endif
 
     int fd;
     std::string device_name;
@@ -102,7 +111,7 @@ private:
     int caps;            // capabilities
     int recsrc;          // devices which are being recorded from
     mutable int modify_counter;
-    typedef std::vector<MixerDevice> ChannelArray;
+    typedef std::vector<Channel> ChannelArray;
     ChannelArray channels;
 };
 
