@@ -34,7 +34,7 @@ void MixCtl::getOSSInfo() {
         throw MixerException(device_name.c_str(), "Could not get system information");
 }
 
-void MixCtl::newChannel(oss_mixext& ext, int value_mask, int shift) {
+void MixCtl::newChannel(oss_mixext& ext, int shift, int value_mask) {
     channels.resize(channels.size() + 1);
     Channel& channel = channels.back();
     channel.num      = channels.size() - 1;
@@ -215,8 +215,7 @@ void MixCtl::readVol(int chan) {
 int MixCtl::getLeft(int chan) const {
     const Channel& channel = channels[chan];
 #if OSS_VERSION >= 0x040004
-    return ((channel.value & channel.mask) - channel.minvalue) 
-        * 256 / channel.maxvalue;
+    return ((channel.value & channel.value_mask)) * 100 / channel.maxvalue;
 #else
     return channel.value % 256;
 #endif
@@ -226,9 +225,7 @@ int MixCtl::getLeft(int chan) const {
 int MixCtl::getRight(int chan) const {
     const Channel& channel = channels[chan];
 #if OSS_VERSION >= 0x040004
-    return (((channel.value >> channel.shift) & channel.mask)
-            - channel.minvalue) 
-        * 256 / channel.maxvalue;
+    return ((channel.value >> channel.shift) & channel.value_mask) * 100 / channel.maxvalue;
 #else
     return channels[chan].value / 256;
 #endif
@@ -237,35 +234,62 @@ int MixCtl::getRight(int chan) const {
 //----------------------------------------------------------------------
 // Write volume to device. Use setVolume, setLeft and setRight first.
 void MixCtl::writeVol(int chan) {
-    ioctl(fd, MIXER_WRITE(chan), &channels[chan].value);
+    Channel& channel = channels[chan];
+#if OSS_VERSION >= 0x040004
+    oss_mixer_value val;
+    val.dev = mixer_device_number;
+    val.ctrl = channel.ctrl;
+    val.timestamp = channel.timestamp;
+    val.value = channels[chan].value;
+    ioctl(fd, SNDCTL_MIX_WRITE, &val);
+#else
+    ioctl(fd, MIXER_WRITE(chan), &channel.value);
+#endif
 }
 
 //----------------------------------------------------------------------
-// Set volume (or left or right component) for a device. You must call writeVol to write it.
-void MixCtl::setVol(int chan, int value) {
-    channels[chan].value = value;
-}
-//----------------------------------------------------------------------
-void MixCtl::setBoth(int chan, int l, int r) {
-    channels[chan].value = 256*r+l;
-}
-//----------------------------------------------------------------------
 void MixCtl::setLeft(int chan, int l) {
     int r;
-    if (channels[chan].stereo)
-        r = channels[chan].value/256;
+#if OSS_VERSION >= 0x040004
+    Channel& channel = channels[chan];
+    if (l > 100) l = 100;
+    l = (l * channel.maxvalue / 100) & channel.value_mask;
+    printf("Setting left of %d to %d (minvalue %d, maxvalue %d)\n", chan, l, channel.minvalue, channel.maxvalue);
+    if (channel.stereo) {
+        r = (channel.value >> channel.shift) & channel.value_mask;
+        channel.value = l | (r << channel.shift);
+    } else {
+        channel.value = l;
+    }
+#else
+    if (channel.stereo)
+        r = getRight(chan);
     else
         r = l;
-    channels[chan].value = 256*r+l;
+    channel.value = 256*r+l;
+#endif
 }
 //----------------------------------------------------------------------
 void MixCtl::setRight(int chan, int r) {
     int l;
+#if OSS_VERSION >= 0x040004
+    Channel& channel = channels[chan];
+    if (r > 100) r = 100;
+    r = (r * channel.maxvalue / 100) & channel.value_mask;
+    printf("Setting right of %d to %d (minvalue %d, maxvalue %d)\n", chan, r, channel.minvalue, channel.maxvalue);
+    if (channel.stereo) {
+        l = channel.value & channel.value_mask;
+        channel.value = l | (r << channel.shift);
+    } else {
+        channel.value = r;
+    }
+#else
     if (channels[chan].stereo)
-        l = channels[chan].value%256;
+        l = getLeft(chan);
     else
         l = r;
     channels[chan].value = 256*r+l;
+#endif
 }
 
 //----------------------------------------------------------------------

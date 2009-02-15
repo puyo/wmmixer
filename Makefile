@@ -7,8 +7,8 @@ mandir      = ${prefix}/share/man
 
 DESTDIR     =
 
-CXX	    = g++
-CXXFLAGS    = -O -Wall -Wno-write-strings -Wno-unused-variable
+CXX	        = g++
+CXXFLAGS    = -g -O -Wall -Wno-write-strings -Wno-unused-variable
 EXTRA_LIBS  = -L/usr/X11R6/lib -lX11 -lXpm -lXext
 
 ifdef OSS4 # OSS4=1 make
@@ -17,7 +17,7 @@ else
 CXXFLAGS += -I/usr/include/linux
 endif
 
-LD 	    = g++
+LD 	        = g++
 LDFLAGS     = -o $(EXECUTABLE) $(EXTRA_LIBDIRS) $(EXTRA_LIBS) $(CXXFLAGS)
 
 EXECUTABLE  = wmmixer

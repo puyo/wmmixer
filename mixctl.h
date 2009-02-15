@@ -64,8 +64,6 @@ public:
     int getRight(int) const;
     void writeVol(int);
 
-    void setVol(int, int);
-    void setBoth(int, int, int);
     void setLeft(int, int);
     void setRight(int, int);
 
@@ -91,7 +89,7 @@ private:
     void getOSSInfo();
     void loadChannels();
     void doStatus();
-    void newChannel(oss_mixext& ext, int value_mask, int shift);
+    void newChannel(oss_mixext& ext, int shift, int value_mask);
     void printChannel(int chan);
 
 #if OSS_VERSION >= 0x040004
