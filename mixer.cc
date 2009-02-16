@@ -11,7 +11,7 @@
 #include "mixer.h"
 
 //----------------------------------------------------------------------
-Mixer::Mixer(char *device_name):
+Mixer::Mixer(const char *device_name):
     device_name(device_name), 
     mixer_device_number(0),
     modify_counter(-1)
@@ -211,7 +211,7 @@ void Mixer::readVol(int chan) {
     val.timestamp = channel.timestamp;
     ioctl(fd, SNDCTL_MIX_READ, &val);
     channel.value = val.value;
-    printChannel(chan);
+    //printChannel(chan);
 #else
     ioctl(fd, MIXER_READ(chan), &channel.value);
 #endif

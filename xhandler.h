@@ -26,6 +26,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
+#include <map>
 #include "common.h"
 
 // Xpm images - standard
@@ -63,7 +64,7 @@ class XHandler {
 public:
     XHandler();
     virtual  ~XHandler();
-    void init(int, char**, int);
+    void init(int, char**);
 
     void repaint();
     void update(unsigned);
@@ -101,7 +102,7 @@ private:
     bool is_ushape;
     bool is_astep;
 
-    unsigned *icon_list;
+    std::map<int, int> icon_list;
 
     Display *display_default;
     Window window_icon;
@@ -143,7 +144,7 @@ private:
     void initGraphicsContext();
     void initMask();
     void initColors();
-    void initIcons(int);
+    void initIcons();
     int flush_expose(Window);
 };
 

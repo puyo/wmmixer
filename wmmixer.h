@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <iostream>
+#include <string>
 #include <X11/X.h>
 #include "mixer.h"
 #include "xhandler.h"
@@ -40,7 +41,7 @@ private:
     // Mixer
     Mixer *mixer;
 
-    char     mixer_device[256];
+    std::string mixer_device;
     unsigned num_channels;
     unsigned current_channel;
     unsigned current_channel_left;

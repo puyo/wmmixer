@@ -8,13 +8,13 @@ mandir      = ${prefix}/share/man
 DESTDIR     =
 
 CXX	        = g++
-CXXFLAGS    = -g -O -Wall -Wno-write-strings -Wno-unused-variable
+CXXFLAGS    = -O -Wall -Wno-write-strings -Wno-unused-variable
 EXTRA_LIBS  = -L/usr/X11R6/lib -lX11 -lXpm -lXext
 
-ifdef OSS4 # OSS4=1 make
-CXXFLAGS += -I/usr/lib/oss/include/sys # debian package 'oss-linux'
-else
+ifdef OSS3 # e.g. OSS3=1 make
 CXXFLAGS += -I/usr/include/linux
+else
+CXXFLAGS += -I/usr/lib/oss/include/sys # debian package 'oss-linux'
 endif
 
 LD 	        = g++

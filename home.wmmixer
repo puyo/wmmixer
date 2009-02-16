@@ -14,7 +14,7 @@
 
 # addchannel %i
 #    Adds a channel to the sequence. %i specifies a channel.
-#    These are the values from my <linux/soundcard.h>:
+#    For OSS3, these are the values from my <soundcard.h>. i.e.
 #       SOUND_MIXER_VOLUME    0
 #       SOUND_MIXER_BASS      1
 #       SOUND_MIXER_TREBLE    2
@@ -26,8 +26,29 @@
 #       SOUND_MIXER_CD        8
 #    There are a few more, but these are the important ones (and are
 #    those identified with appropriate icons).
-#    Ths channel added becomes the current channel for subsequent
+#
+#    The channel added becomes the current channel for subsequent
 #    setmono, setleft, setright and setrecsrc commands.
+#
+#    For OSS4, the format is
+#
+#       addchannel %s %i
+#    
+#    Here, %s is the fully qualified name of the channel. Run 'ossmix' to see a
+#    list of channel names. The first channel that has a matching name is used.
+#    %i is the icon to use. Icons are as follows:
+#       0 plain
+#       1 wave
+#       2 keyboard
+#       3 cd
+#       4 plug
+#       5 mic
+#       6 speaker
+#       7 rest
+#       8 doubleclef
+#    e.g.
+#       addchannel vmix-outvol 0
+#       addchannel vmix-invol  5
 
 # setchannel %i
 #    Similar to addchannel, except the channel is not actually added
@@ -56,14 +77,15 @@
 
 # At least one channel must be added!
 
-addchannel 0
+addchannel vmix0-outvol 0
+addchannel vmix0-invol 5
 
-addchannel 3
+#addchannel 3
 
-addchannel 4
+#addchannel 4
 
-addchannel 6
+#addchannel 6
 
-addchannel 7
+#addchannel 7
 
-addchannel 8
+#addchannel 8

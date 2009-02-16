@@ -57,7 +57,7 @@ typedef struct {
 //----------------------------------------------------------------------
 class Mixer {
 public:
-    Mixer(char *dname);
+    Mixer(const char *device_name);
     virtual ~Mixer();
     void readVol(int);
     int getLeft(int) const;

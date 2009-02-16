@@ -9,6 +9,7 @@
 // See the COPYING file for details.
 
 #include "xhandler.h"
+#include "mixer.h" // OSS_VERSION
 
 //--------------------------------------------------------------------
 XHandler::XHandler() {
@@ -41,34 +42,24 @@ XHandler::~XHandler() {
         XDestroyWindow(display_default, window_icon);
 
     XCloseDisplay(display_default);
-
-    delete[] icon_list;
 }
 
 
 //--------------------------------------------------------------------
-void XHandler::init(int argc, char** argv, int num_channels) {
+void XHandler::init(int argc, char** argv) {
     int display_depth;
-
-    window_size=is_astep ? ASTEPSIZE : NORMSIZE;
-
+    window_size = is_astep ? ASTEPSIZE : NORMSIZE;
     if ((display_default = XOpenDisplay(display_name))==NULL) {
         std::cerr <<  NAME << " : Unable to open X display '" << XDisplayName(display_name) << "'." << std::endl;
         exit(1);
     }
-
     initWindow(argc, argv);
-
     initColors();
-
     display_depth = DefaultDepth(display_default, DefaultScreen(display_default));
     initPixmaps(display_depth);
-
     initGraphicsContext();
-
     initMask();
-
-    initIcons(num_channels);
+    initIcons();
 }
 
 //--------------------------------------------------------------------
@@ -100,13 +91,11 @@ bool XHandler::isVolumeBar(int x, int y) {
 unsigned long XHandler::getColor(char *colorname) {
     XColor color;
     XWindowAttributes winattr;
-
     XGetWindowAttributes(display_default, window_root, &winattr);
-    color.pixel=0;
+    color.pixel = 0;
     XParseColor(display_default, winattr.colormap, colorname, &color);
-    color.flags=DoRed | DoGreen | DoBlue;
+    color.flags = DoRed | DoGreen | DoBlue;
     XAllocColor(display_default, winattr.colormap, &color);
-
     return color.pixel;
 }
 
@@ -160,7 +149,7 @@ void XHandler::update(unsigned channel) {
 //--------------------------------------------------------------------
 void XHandler::drawLeft(unsigned curleft) {
     XSetForeground(display_default, graphics_context, shade_colors[(curleft*25)/100]);
-    for (unsigned i=0;i<25;i++) {
+    for (unsigned i = 0; i < 25; i++) {
         if (i >= (curleft*25)/100) {
             XSetForeground(display_default, graphics_context, colors[3]);
         } else {
@@ -172,7 +161,7 @@ void XHandler::drawLeft(unsigned curleft) {
 
 //--------------------------------------------------------------------
 void XHandler::drawRight(unsigned curright) {
-    for (unsigned i=0;i<25;i++) {
+    for (unsigned i = 0; i < 25; i++) {
         if (i >= (curright*25)/100) {
             XSetForeground(display_default, graphics_context, colors[3]);
         } else {
@@ -186,7 +175,7 @@ void XHandler::drawRight(unsigned curright) {
 // Based on wmsmixer by Damian Kramer <psiren@hibernaculum.demon.co.uk>
 void XHandler::drawMono(unsigned curright) {
     XSetForeground(display_default, graphics_context, colors[1]);
-    for (unsigned i=0;i<25;i++) {
+    for (unsigned i = 0; i < 25; i++) {
         if (i >= (curright*25)/100) {
             XSetForeground(display_default, graphics_context, colors[3]);
         } else {
@@ -233,7 +222,7 @@ void XHandler::drawButton(int x, int y, int w, int h, bool down) {
 //--------------------------------------------------------------------
 int XHandler::flush_expose(Window w) {
     XEvent dummy;
-    int i=0;
+    int i = 0;
 
     while (XCheckTypedWindowEvent(display_default, w, Expose, &dummy))
         i++;
@@ -246,14 +235,6 @@ int XHandler::flush_expose(Window w) {
 int XHandler::getWindowSize() {
     return window_size;
 }
-
-//--------------------------------------------------------------------
-// --> inline
-//Display* XHandler::getDisplay()
-//{
-//  return display_default;
-//}
-
 
 //--------------------------------------------------------------------
 int XHandler::getButtonState() {
@@ -311,13 +292,9 @@ Atom XHandler::getDeleteWin() {
 }
 
 //--------------------------------------------------------------------
-void XHandler::initIcons(int num) {
-    if (icon_list)
-        delete[] icon_list;
-    icon_list = new unsigned[num];
+void XHandler::initIcons() {
 #if OSS_VERSION >= 0x040004
-    for (int i = 0; i < num; i++)
-        icon_list[i] = 0;
+    // no defaults
 #else
     icon_list[0] = 0;
     icon_list[1] = 7;
@@ -328,14 +305,12 @@ void XHandler::initIcons(int num) {
     icon_list[6] = 4;
     icon_list[7] = 5;
     icon_list[8] = 3;
-    for (int counter = 9; counter < num; counter++)
-        icon_list[counter] = 9;
 #endif
 }
 
 //--------------------------------------------------------------------
 void XHandler::setIcon(int chan, int icon) {
-    if (0 <= icon && icon <= 9)
+    if (0 <= icon && icon <= 9 && 0 <= chan)
         icon_list[chan] = icon;
 }
 
@@ -388,7 +363,6 @@ void XHandler::initWindow(int argc, char** argv) {
     _XA_GNUSTEP_WM_FUNC = XInternAtom(display_default, "_GNUSTEP_WM_FUNCTION", false);
     deleteWin = XInternAtom(display_default, "WM_DELETE_WINDOW", false);
 
-
     shints.x = 0;
     shints.y = 0;
     //  shints.flags  = USSize;
@@ -406,8 +380,7 @@ void XHandler::initWindow(int argc, char** argv) {
     shints.base_height = window_size;
     shints.width       = window_size;
     shints.height      = window_size;
-    shints.flags=PMinSize | PMaxSize | PBaseSize; // Gordon
-
+    shints.flags = PMinSize | PMaxSize | PBaseSize; // Gordon
 
     window_root = RootWindow(display_default, screen);
 
@@ -421,7 +394,6 @@ void XHandler::initWindow(int argc, char** argv) {
                                        shints.width, shints.height, 0, fore_pix, back_pix);
 
     XSetWMNormalHints(display_default, window_main, &shints);
-
 
     wmhints.icon_x = shints.x;
     wmhints.icon_y = shints.y;
@@ -442,12 +414,11 @@ void XHandler::initWindow(int argc, char** argv) {
         wmhints.flags = WindowGroupHint | StateHint;
     }
 
-    classHint.res_name=NAME;
-    classHint.res_class=CLASS;
+    classHint.res_name = NAME;
+    classHint.res_class = CLASS;
 
     XSetClassHint(display_default, window_main, &classHint);
     XSetClassHint(display_default, window_icon, &classHint);
-
 
     if (XStringListToTextProperty(&wname, 1, &name) == 0) {
         std::cerr << wname << ": can't allocate window name" << std::endl;
@@ -469,7 +440,7 @@ void XHandler::initColors() {
     colors[2] = mixColor(ledcolor_name, 60,  backcolor_name, 40);
     colors[3] = mixColor(ledcolor_name, 25,  backcolor_name, 75);
 
-    for (int count=0; count<25; count++) {
+    for (int count = 0; count < 25; count++) {
         shade_colors[count] = mixColor(ledcolor_high_name, count*2, ledcolor_name, 100-count*4);
     }
 }
@@ -484,14 +455,19 @@ void XHandler::initMask() {
     XSetIconName(display_default, window_main, NAME);
 
     if (is_wmaker || is_ushape || is_astep) {
-        XShapeCombineMask(display_default, window_icon, ShapeBounding, window_size/2-32, window_size/2-32, pixmap_mask, ShapeSet);
-        XShapeCombineMask(display_default, window_main, ShapeBounding, window_size/2-32, window_size/2-32, pixmap_mask, ShapeSet);
+        XShapeCombineMask(display_default, window_icon, ShapeBounding,
+                window_size/2-32, window_size/2-32, pixmap_mask, ShapeSet);
+        XShapeCombineMask(display_default, window_main, ShapeBounding,
+                window_size/2-32, window_size/2-32, pixmap_mask, ShapeSet);
     } else {
-        XCopyArea(display_default, pixmap_tile, pixmap_disp, graphics_context, 0, 0, 64, 64, 0, 0);
+        XCopyArea(display_default, pixmap_tile, pixmap_disp, graphics_context,
+                0, 0, 64, 64, 0, 0);
     }
 
-    XSelectInput(display_default, window_main, ButtonPressMask | ExposureMask | ButtonReleaseMask | PointerMotionMask | StructureNotifyMask);
-    XSelectInput(display_default, window_icon, ButtonPressMask | ExposureMask | ButtonReleaseMask | PointerMotionMask | StructureNotifyMask);
+    XSelectInput(display_default, window_main, ButtonPressMask | ExposureMask |
+            ButtonReleaseMask | PointerMotionMask | StructureNotifyMask);
+    XSelectInput(display_default, window_icon, ButtonPressMask | ExposureMask |
+            ButtonReleaseMask | PointerMotionMask | StructureNotifyMask);
     XMapWindow(display_default, window_main);
 }
 

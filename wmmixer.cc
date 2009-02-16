@@ -12,23 +12,20 @@
 #include "wmmixer.h"
 
 //--------------------------------------------------------------------
-WMMixer::WMMixer() {
-    // Initialize member variables
-    current_channel        = 0;
-    num_channels           = 0;
-    current_channel_left   = 0;
-    current_channel_right  = 0;
-    repeat_timer           = 0;
-    wheel_scroll           = 2;
-    current_recording      = false;
-    current_show_recording = false;
-    dragging               = false;
-
-    strcpy(mixer_device, MIXERDEV);
-
+WMMixer::WMMixer():
+    mixer_device(MIXERDEV),
+    num_channels(0),
+    current_channel(0),
+    current_channel_left(0),
+    current_channel_right(0),
+    current_recording(false),
+    current_show_recording(false),
+    repeat_timer(0),
+    dragging(false),
+    wheel_scroll(2)
+{
     xhandler = new XHandler();
 }
-
 
 //--------------------------------------------------------------------
 WMMixer::~WMMixer() {
@@ -36,7 +33,6 @@ WMMixer::~WMMixer() {
     delete mixer;
     delete xhandler;
 }
-
 
 //--------------------------------------------------------------------
 void WMMixer::loop() {
@@ -99,9 +95,8 @@ void WMMixer::init(int argc, char **argv) {
 
     initMixer();
 
+    xhandler->init(argc, argv);
     readConfigurationFile();
-
-    xhandler->init(argc, argv, mixer->getNumChannels());
 
     if (num_channels == 0) {
         std::cerr << NAME << " : Sorry, no supported channels found." << std::endl;
@@ -112,9 +107,8 @@ void WMMixer::init(int argc, char **argv) {
 
 //--------------------------------------------------------------------
 void WMMixer::initMixer() {
-    // Initialize Mixer
     try {
-        mixer   = new Mixer(mixer_device);
+        mixer = new Mixer(mixer_device.c_str());
     } catch (MixerException &exc) {
         std::cerr << NAME << " : " << exc.getMessage() << "'." << std::endl;
         exit(1);
@@ -128,8 +122,6 @@ void WMMixer::initMixer() {
             num_channels++;
         }
     }
-
-    printf("Num channels = %d\n", num_channels);
 }
 
 
@@ -255,7 +247,7 @@ void WMMixer::parseArgs(int argc, char **argv) {
             xhandler->setBackColor(optarg);
             break;
         case 'm':
-            sprintf(mixer_device, "%s", optarg);
+            mixer_device = optarg;
             break;
         case 'r':
             if (atoi(optarg) > 0)
@@ -275,88 +267,91 @@ void WMMixer::readConfigurationFile() {
 
     rcfilename = getenv("HOME");
     rcfilename += "/.wmmixer";
-    if ((rcfile = fopen(rcfilename.c_str(), "r")) != NULL) {
-        num_channels = 0;
-        do {
-            if (fgets(buf, 250, rcfile) == NULL){
-                fprintf(stderr, "%s : Could not read configuration file '%s'.\n", NAME, rcfilename.c_str());
-                return;
-            }
-            if ((done = feof(rcfile)) == 0) {
-                buf[strlen(buf)-1] = 0;
-                if (strncmp(buf, "addchannel ", strlen("addchannel ")) == 0) {
-#if OSS_VERSION >= 0x040004
-                    char name[512];
-                    int icon;
-                    int chan;
-                    sscanf(buf, "addchannel %511s %i", name, &icon);
-                    chan = mixer->find(name);
-                    if (chan == -1) {
-                        fprintf(stderr, "%s : Sorry, the channel (%s) could not be found. Run ossmix for a list of channels.\n", NAME, name);
-                        exit(-1);
-                    } else {
-                        current = (unsigned)chan;
-                    }
-#else
-                    sscanf(buf, "addchannel %i", &current);
-#endif
-                    if (current >= mixer->getNumChannels() || mixer->getSupport(current) == false) {
-                        fprintf(stderr, "%s : Sorry, this channel (%i) is not supported.\n", NAME, current);
-                        current = mixer->getNumChannels() + 1;
-                    } else {
-                        channel_list[num_channels] = current;
-                        num_channels++;
-                    }
-                }
-                if (strncmp(buf, "setchannel ", strlen("setchannel ")) == 0) {
-                    sscanf(buf, "setchannel %i", &current);
-                    if (current >= mixer->getNumChannels() || mixer->getSupport(current) == false) {
-                        fprintf(stderr, "%s : Sorry, this channel (%i) is not supported.\n", NAME, current);
-                        current = mixer->getNumChannels() + 1;
-                    }
-                }
-                if (strncmp(buf, "setmono ", strlen("setmono ")) == 0) {
-                    if (current== mixer->getNumChannels() + 1)
-                        fprintf(stderr, "%s : Sorry, no current channel.\n", NAME);
-                    else {
-                        int value;
-                        sscanf(buf, "setmono %i", &value);
-                        mixer->setLeft(current, value);
-                        mixer->setRight(current, value);
-                        mixer->writeVol(current);
-                    }
-                }
-                if (strncmp(buf, "setleft ", strlen("setleft ")) == 0) {
-                    if (current== mixer->getNumChannels() + 1)
-                        fprintf(stderr, "%s : Sorry, no current channel.\n", NAME);
-                    else {
-                        int value;
-                        sscanf(buf, "setleft %i", &value);
-                        mixer->setLeft(current, value);
-                        mixer->writeVol(current);
-                    }
-                }
-                if (strncmp(buf, "setright ", strlen("setright ")) == 0) {
-                    if (current== mixer->getNumChannels() + 1)
-                        fprintf(stderr, "%s : Sorry, no current channel.\n", NAME);
-                    else {
-                        int value;
-                        sscanf(buf, "setleft %i", &value);
-                        mixer->setRight(current, value);
-                        mixer->writeVol(current);
-                    }
-                }
-                if (strncmp(buf, "setrecsrc ", strlen("setrecsrc ")) == 0) {
-                    if (current== mixer->getNumChannels() + 1)
-                        fprintf(stderr, "%s : Sorry, no current channel.\n", NAME);
-                    else
-                        mixer->setRec(current, (strncmp(buf+strlen("setrecsrc "), "true", strlen("true")) == 0));
-                }
-            }
-        } while (done == 0);
-        fclose(rcfile);
-        mixer->writeRec();
+    if ((rcfile = fopen(rcfilename.c_str(), "r")) == NULL) {
+        fprintf(stderr, "%s : Could not read configuration file '%s'.\n", NAME, rcfilename.c_str());
+        return;
     }
+
+    num_channels = 0;
+    do {
+        if (fgets(buf, 250, rcfile) == NULL){
+            return;
+        }
+        if ((done = feof(rcfile)) == 0) {
+            buf[strlen(buf)-1] = 0;
+            if (strncmp(buf, "addchannel ", strlen("addchannel ")) == 0) {
+#if OSS_VERSION >= 0x040004
+                char name[512];
+                int icon = 0;
+                int chan;
+                sscanf(buf, "addchannel %511s %i", name, &icon);
+                chan = mixer->find(name);
+                if (chan == -1) {
+                    fprintf(stderr, "%s : Sorry, the channel (%s) could not be found. Run ossmix for a list of channels.\n", NAME, name);
+                    exit(-1);
+                } else {
+                    current = (unsigned)chan;
+                    xhandler->setIcon(chan, icon);
+                }
+#else
+                sscanf(buf, "addchannel %i", &current);
+#endif
+                if (current >= mixer->getNumChannels() || mixer->getSupport(current) == false) {
+                    fprintf(stderr, "%s : Sorry, this channel (%i) is not supported.\n", NAME, current);
+                    current = mixer->getNumChannels() + 1;
+                } else {
+                    channel_list[num_channels] = current;
+                    num_channels++;
+                }
+            }
+            if (strncmp(buf, "setchannel ", strlen("setchannel ")) == 0) {
+                sscanf(buf, "setchannel %i", &current);
+                if (current >= mixer->getNumChannels() || mixer->getSupport(current) == false) {
+                    fprintf(stderr, "%s : Sorry, this channel (%i) is not supported.\n", NAME, current);
+                    current = mixer->getNumChannels() + 1;
+                }
+            }
+            if (strncmp(buf, "setmono ", strlen("setmono ")) == 0) {
+                if (current== mixer->getNumChannels() + 1)
+                    fprintf(stderr, "%s : Sorry, no current channel.\n", NAME);
+                else {
+                    int value;
+                    sscanf(buf, "setmono %i", &value);
+                    mixer->setLeft(current, value);
+                    mixer->setRight(current, value);
+                    mixer->writeVol(current);
+                }
+            }
+            if (strncmp(buf, "setleft ", strlen("setleft ")) == 0) {
+                if (current== mixer->getNumChannels() + 1)
+                    fprintf(stderr, "%s : Sorry, no current channel.\n", NAME);
+                else {
+                    int value;
+                    sscanf(buf, "setleft %i", &value);
+                    mixer->setLeft(current, value);
+                    mixer->writeVol(current);
+                }
+            }
+            if (strncmp(buf, "setright ", strlen("setright ")) == 0) {
+                if (current== mixer->getNumChannels() + 1)
+                    fprintf(stderr, "%s : Sorry, no current channel.\n", NAME);
+                else {
+                    int value;
+                    sscanf(buf, "setleft %i", &value);
+                    mixer->setRight(current, value);
+                    mixer->writeVol(current);
+                }
+            }
+            if (strncmp(buf, "setrecsrc ", strlen("setrecsrc ")) == 0) {
+                if (current== mixer->getNumChannels() + 1)
+                    fprintf(stderr, "%s : Sorry, no current channel.\n", NAME);
+                else
+                    mixer->setRec(current, (strncmp(buf+strlen("setrecsrc "), "true", strlen("true")) == 0));
+            }
+        }
+    } while (done == 0);
+    fclose(rcfile);
+    mixer->writeRec();
 }
 
 //--------------------------------------------------------------------
@@ -416,8 +411,6 @@ void WMMixer::pressEvent(XButtonEvent *xev) {
         repeat_timer = 0;
         xhandler->drawBtns(BTNNEXT, current_show_recording);
     }
-
-    printf("Current channel = %d out of %d\n", current_channel, num_channels);
 
     // Volume settings
     if (xhandler->isVolumeBar(x, y)) {
