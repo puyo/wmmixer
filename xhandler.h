@@ -23,9 +23,9 @@
 #include <X11/extensions/shape.h>
 
 #include <iostream>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
 #include "common.h"
 
 // Xpm images - standard
@@ -60,61 +60,6 @@
 
 //--------------------------------------------------------------------
 class XHandler {
-protected:
-    int button_state_;
-    int window_size_;
-
-    bool is_wmaker_;
-    bool is_ushape_;
-    bool is_astep_;
-
-    unsigned *icon_list_;
-
-    Display *display_default_;
-    Window window_icon_;
-    Window window_main_;
-    Window window_root_;
-
-    GC graphics_context_;
-    unsigned long colors_[4];
-    unsigned long shade_colors_[25];
-
-    char display_name_[256];
-    char position_name_[256];
-    char ledcolor_name_[256];
-    char ledcolor_high_name_[256];
-    char backcolor_name_[256];
-
-    Pixel back_pix;
-    Pixel fore_pix;
-
-    // Pixmaps - standard
-    Pixmap pixmap_main;
-    Pixmap pixmap_tile;
-    Pixmap pixmap_disp;
-    Pixmap pixmap_mask;
-
-    // Pixmaps - custom
-    Pixmap pixmap_icon;
-    Pixmap pixmap_nrec;
-
-    // X-Windows basics - standard
-    Atom _XA_GNUSTEP_WM_FUNC;
-    Atom deleteWin;
-
-
-    unsigned long getColor(char*);
-    unsigned long mixColor(char*, int, char*, int);
-    void drawButton(int, int, int, int, bool);
-    void initPixmaps(int);
-    void initWindow(int, char**);
-    void initGraphicsContext();
-    void initMask();
-    void initColors();
-    void initIcons(int);
-
-    int flush_expose(Window);
-
 public:
     XHandler();
     virtual  ~XHandler();
@@ -133,9 +78,7 @@ public:
     bool isRecButton(int, int);
     bool isVolumeBar(int, int);
 
-    Display* getDisplay() {
-        return display_default_;
-    }
+    Display* getDisplay() { return display_default; }
     int  getButtonState();
     void setButtonState(int);
     void setDisplay(char* arg);
@@ -149,6 +92,58 @@ public:
     int  getWindowSize();
     Atom getDeleteWin();
 
+private:
+    int button_state;
+    int window_size;
+
+    bool is_wmaker;
+    bool is_ushape;
+    bool is_astep;
+
+    unsigned *icon_list;
+
+    Display *display_default;
+    Window window_icon;
+    Window window_main;
+    Window window_root;
+
+    GC graphics_context;
+    unsigned long colors[4];
+    unsigned long shade_colors[25];
+
+    char display_name[256];
+    char position_name[256];
+    char ledcolor_name[256];
+    char ledcolor_high_name[256];
+    char backcolor_name[256];
+
+    Pixel back_pix;
+    Pixel fore_pix;
+
+    // Pixmaps - standard
+    Pixmap pixmap_main;
+    Pixmap pixmap_tile;
+    Pixmap pixmap_disp;
+    Pixmap pixmap_mask;
+
+    // Pixmaps - custom
+    Pixmap pixmap_icon;
+    Pixmap pixmap_nrec;
+
+    // X-Windows basics - standard
+    Atom _XA_GNUSTEP_WM_FUNC;
+    Atom deleteWin;
+
+    unsigned long getColor(char*);
+    unsigned long mixColor(char*, int, char*, int);
+    void drawButton(int, int, int, int, bool);
+    void initPixmaps(int);
+    void initWindow(int, char**);
+    void initGraphicsContext();
+    void initMask();
+    void initColors();
+    void initIcons(int);
+    int flush_expose(Window);
 };
 
 #endif //__xhandler_h__

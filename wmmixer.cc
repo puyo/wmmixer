@@ -14,27 +14,27 @@
 //--------------------------------------------------------------------
 WMMixer::WMMixer() {
     // Initialize member variables
-    current_channel_        = 0;
-    num_channels_           = 0;
-    current_channel_left_   = 0;
-    current_channel_right_  = 0;
-    repeat_timer_           = 0;
-    wheel_scroll_           = 2;
-    current_recording_      = false;
-    current_show_recording_ = false;
-    dragging_               = false;
+    current_channel        = 0;
+    num_channels           = 0;
+    current_channel_left   = 0;
+    current_channel_right  = 0;
+    repeat_timer           = 0;
+    wheel_scroll           = 2;
+    current_recording      = false;
+    current_show_recording = false;
+    dragging               = false;
 
     strcpy(mixer_device, MIXERDEV);
 
-    xhandler_ = new XHandler();
+    xhandler = new XHandler();
 }
 
 
 //--------------------------------------------------------------------
 WMMixer::~WMMixer() {
-    delete[] channel_list_;
-    delete mixctl_;
-    delete xhandler_;
+    delete[] channel_list;
+    delete mixer;
+    delete xhandler;
 }
 
 
@@ -44,11 +44,11 @@ void WMMixer::loop() {
 
     bool done = false;
     while (!done) {
-        while (XPending(xhandler_->getDisplay())) {
-            XNextEvent(xhandler_->getDisplay(), &xev);
+        while (XPending(xhandler->getDisplay())) {
+            XNextEvent(xhandler->getDisplay(), &xev);
             switch (xev.type) {
             case Expose:
-                xhandler_->repaint();
+                xhandler->repaint();
                 break;
             case ButtonPress:
                 pressEvent(&xev.xbutton);
@@ -60,34 +60,34 @@ void WMMixer::loop() {
                 motionEvent(&xev.xmotion);
                 break;
             case ClientMessage:
-                if (xev.xclient.data.l[0] == (int)xhandler_->getDeleteWin())
+                if (xev.xclient.data.l[0] == (int)xhandler->getDeleteWin())
                     done = true;
                 break;
             }
         }
 
         // keep a button pressed causes scrolling throught the channels
-        if (xhandler_->getButtonState() & (BTNPREV | BTNNEXT)) {
-            repeat_timer_++;
-            if (repeat_timer_ >= RPTINTERVAL) {
-                if (xhandler_->getButtonState() & BTNNEXT) {
-                    current_channel_++;
-                    if (current_channel_ >= num_channels_)
-                        current_channel_ = 0;
+        if (xhandler->getButtonState() & (BTNPREV | BTNNEXT)) {
+            repeat_timer++;
+            if (repeat_timer >= RPTINTERVAL) {
+                if (xhandler->getButtonState() & BTNNEXT) {
+                    current_channel++;
+                    if (current_channel >= num_channels)
+                        current_channel = 0;
                 } else {
-                    if (current_channel_ < 1)
-                        current_channel_ = num_channels_-1;
+                    if (current_channel < 1)
+                        current_channel = num_channels-1;
                     else
-                        current_channel_--;
+                        current_channel--;
                 }
                 checkVol(true);
-                repeat_timer_ = 0;
+                repeat_timer = 0;
             }
         } else {
             checkVol(false);
         }
 
-        XFlush(xhandler_->getDisplay());
+        XFlush(xhandler->getDisplay());
         usleep(100000);
     }
 }
@@ -101,9 +101,9 @@ void WMMixer::init(int argc, char **argv) {
 
     readConfigurationFile();
 
-    xhandler_->init(argc, argv, mixctl_->getNumChannels());
+    xhandler->init(argc, argv, mixer->getNumChannels());
 
-    if (num_channels_ == 0) {
+    if (num_channels == 0) {
         std::cerr << NAME << " : Sorry, no supported channels found." << std::endl;
     } else {
         checkVol(true);
@@ -114,18 +114,18 @@ void WMMixer::init(int argc, char **argv) {
 void WMMixer::initMixer() {
     // Initialize Mixer
     try {
-        mixctl_   = new MixCtl(mixer_device);
+        mixer   = new Mixer(mixer_device);
     } catch (MixerException &exc) {
         std::cerr << NAME << " : " << exc.getMessage() << "'." << std::endl;
         exit(1);
     }
 
-    channel_list_ = new unsigned[mixctl_->getNumChannels()];
+    channel_list = new unsigned[mixer->getNumChannels()];
 
-    for (unsigned count = 0; count < mixctl_->getNumChannels(); count++) {
-        if (mixctl_->getSupport(count)) {
-            channel_list_[num_channels_]=count;
-            num_channels_++;
+    for (unsigned count = 0; count < mixer->getNumChannels(); count++) {
+        if (mixer->getSupport(count)) {
+            channel_list[num_channels]=count;
+            num_channels++;
         }
     }
 }
@@ -133,52 +133,52 @@ void WMMixer::initMixer() {
 
 //--------------------------------------------------------------------
 void WMMixer::checkVol(bool forced = true) {
-    if (!forced && !mixctl_->hasChanged())
+    if (!forced && !mixer->hasChanged())
         return;
 
-    if (mixctl_->isMuted(channel_list_[current_channel_]))
-        xhandler_->setButtonState(xhandler_->getButtonState() | BTNMUTE);
+    if (mixer->isMuted(channel_list[current_channel]))
+        xhandler->setButtonState(xhandler->getButtonState() | BTNMUTE);
     else
-        xhandler_->setButtonState(xhandler_->getButtonState() & ~BTNMUTE);
+        xhandler->setButtonState(xhandler->getButtonState() & ~BTNMUTE);
 
-    mixctl_->readVol(channel_list_[current_channel_]);
-    unsigned nl   = mixctl_->getLeft(channel_list_[current_channel_]);
-    unsigned nr   = mixctl_->getRight(channel_list_[current_channel_]);
-    bool     nrec = mixctl_->readRec(channel_list_[current_channel_], true);
+    mixer->readVol(channel_list[current_channel]);
+    unsigned nl   = mixer->getLeft(channel_list[current_channel]);
+    unsigned nr   = mixer->getRight(channel_list[current_channel]);
+    bool     nrec = mixer->readRec(channel_list[current_channel], true);
 
     if (forced) {
-        current_channel_left_  = nl;
-        current_channel_right_ = nr;
-        current_recording_     = nrec;
+        current_channel_left  = nl;
+        current_channel_right = nr;
+        current_recording     = nrec;
         if (nrec)
-            xhandler_->setButtonState(xhandler_->getButtonState() | BTNREC);
+            xhandler->setButtonState(xhandler->getButtonState() | BTNREC);
         else
-            xhandler_->setButtonState(xhandler_->getButtonState() & ~BTNREC);
-        current_show_recording_ = mixctl_->getRecords(channel_list_[current_channel_]);
+            xhandler->setButtonState(xhandler->getButtonState() & ~BTNREC);
+        current_show_recording = mixer->getRecords(channel_list[current_channel]);
         updateDisplay();
     } else {
-        if (nl != current_channel_left_ || nr != current_channel_right_ || nrec != current_recording_) {
-            if (nl != current_channel_left_) {
-                current_channel_left_ = nl;
-                if (mixctl_->getStereo(channel_list_[current_channel_]))
-                    xhandler_->drawLeft(current_channel_left_);
+        if (nl != current_channel_left || nr != current_channel_right || nrec != current_recording) {
+            if (nl != current_channel_left) {
+                current_channel_left = nl;
+                if (mixer->getStereo(channel_list[current_channel]))
+                    xhandler->drawLeft(current_channel_left);
                 else
-                    xhandler_->drawMono(current_channel_left_);
+                    xhandler->drawMono(current_channel_left);
             }
-            if (nr != current_channel_right_) {
-                current_channel_right_ = nr;
-                if (mixctl_->getStereo(channel_list_[current_channel_]))
-                    xhandler_->drawRight(current_channel_right_);
+            if (nr != current_channel_right) {
+                current_channel_right = nr;
+                if (mixer->getStereo(channel_list[current_channel]))
+                    xhandler->drawRight(current_channel_right);
                 else
-                    xhandler_->drawMono(current_channel_left_);
+                    xhandler->drawMono(current_channel_left);
             }
-            if (nrec != current_recording_) {
-                current_recording_ = nrec;
+            if (nrec != current_recording) {
+                current_recording = nrec;
                 if (nrec)
-                    xhandler_->setButtonState(xhandler_->getButtonState() | BTNREC);
+                    xhandler->setButtonState(xhandler->getButtonState() | BTNREC);
                 else
-                    xhandler_->setButtonState(xhandler_->getButtonState() & ~BTNREC);
-                xhandler_->drawBtns(BTNREC, current_show_recording_);
+                    xhandler->setButtonState(xhandler->getButtonState() & ~BTNREC);
+                xhandler->drawBtns(BTNREC, current_show_recording);
             }
             updateDisplay();
         }
@@ -229,35 +229,35 @@ void WMMixer::parseArgs(int argc, char **argv) {
             displayVersion();
             break;
         case 'd':
-            xhandler_->setDisplay(optarg);
+            xhandler->setDisplay(optarg);
             break;
         case 'g':
-            xhandler_->setPosition(optarg);
+            xhandler->setPosition(optarg);
             break;
         case 'w':
-            xhandler_->setWindowMaker();
+            xhandler->setWindowMaker();
             break;
         case 'a':
-            xhandler_->setAfterStep();
+            xhandler->setAfterStep();
             break;
         case 's':
-            xhandler_->setUnshaped();
+            xhandler->setUnshaped();
             break;
         case 'l':
-            xhandler_->setLedColor(optarg);
+            xhandler->setLedColor(optarg);
             break;
         case 'L':
-            xhandler_->setLedHighColor(optarg);
+            xhandler->setLedHighColor(optarg);
             break;
         case 'b':
-            xhandler_->setBackColor(optarg);
+            xhandler->setBackColor(optarg);
             break;
         case 'm':
             sprintf(mixer_device, "%s", optarg);
             break;
         case 'r':
             if (atoi(optarg)>0)
-                wheel_scroll_ = atoi(optarg);
+                wheel_scroll = atoi(optarg);
             break;
         }
     }
@@ -270,11 +270,11 @@ void WMMixer::readConfigurationFile() {
     char buf[256];
     int done;
     //   int current=-1;
-    unsigned current = mixctl_->getNumChannels() + 1;
+    unsigned current = mixer->getNumChannels() + 1;
 
     sprintf(rcfilen, "%s/.wmmixer", getenv("HOME"));
     if ((rcfile = fopen(rcfilen, "r")) != NULL) {
-        num_channels_ = 0;
+        num_channels = 0;
         do {
             if (fgets(buf, 250, rcfile) == NULL){
                 fprintf(stderr, "%s : Could not read configuration file '%s'.\n", NAME, rcfilen);
@@ -284,62 +284,62 @@ void WMMixer::readConfigurationFile() {
                 buf[strlen(buf)-1] = 0;
                 if (strncmp(buf, "addchannel ", strlen("addchannel ")) == 0) {
                     sscanf(buf, "addchannel %i", &current);
-                    if (current >= mixctl_->getNumChannels() || mixctl_->getSupport(current) == false) {
+                    if (current >= mixer->getNumChannels() || mixer->getSupport(current) == false) {
                         fprintf(stderr, "%s : Sorry, this channel (%i) is not supported.\n", NAME, current);
-                        current = mixctl_->getNumChannels() + 1;
+                        current = mixer->getNumChannels() + 1;
                     } else {
-                        channel_list_[num_channels_] = current;
-                        num_channels_++;
+                        channel_list[num_channels] = current;
+                        num_channels++;
                     }
                 }
                 if (strncmp(buf, "setchannel ", strlen("setchannel ")) == 0) {
                     sscanf(buf, "setchannel %i", &current);
-                    if (current >= mixctl_->getNumChannels() || mixctl_->getSupport(current) == false) {
+                    if (current >= mixer->getNumChannels() || mixer->getSupport(current) == false) {
                         fprintf(stderr, "%s : Sorry, this channel (%i) is not supported.\n", NAME, current);
-                        current = mixctl_->getNumChannels() + 1;
+                        current = mixer->getNumChannels() + 1;
                     }
                 }
                 if (strncmp(buf, "setmono ", strlen("setmono ")) == 0) {
-                    if (current== mixctl_->getNumChannels() + 1)
+                    if (current== mixer->getNumChannels() + 1)
                         fprintf(stderr, "%s : Sorry, no current channel.\n", NAME);
                     else {
                         int value;
                         sscanf(buf, "setmono %i", &value);
-                        mixctl_->setLeft(current, value);
-                        mixctl_->setRight(current, value);
-                        mixctl_->writeVol(current);
+                        mixer->setLeft(current, value);
+                        mixer->setRight(current, value);
+                        mixer->writeVol(current);
                     }
                 }
                 if (strncmp(buf, "setleft ", strlen("setleft ")) == 0) {
-                    if (current== mixctl_->getNumChannels() + 1)
+                    if (current== mixer->getNumChannels() + 1)
                         fprintf(stderr, "%s : Sorry, no current channel.\n", NAME);
                     else {
                         int value;
                         sscanf(buf, "setleft %i", &value);
-                        mixctl_->setLeft(current, value);
-                        mixctl_->writeVol(current);
+                        mixer->setLeft(current, value);
+                        mixer->writeVol(current);
                     }
                 }
                 if (strncmp(buf, "setright ", strlen("setright ")) == 0) {
-                    if (current== mixctl_->getNumChannels() + 1)
+                    if (current== mixer->getNumChannels() + 1)
                         fprintf(stderr, "%s : Sorry, no current channel.\n", NAME);
                     else {
                         int value;
                         sscanf(buf, "setleft %i", &value);
-                        mixctl_->setRight(current, value);
-                        mixctl_->writeVol(current);
+                        mixer->setRight(current, value);
+                        mixer->writeVol(current);
                     }
                 }
                 if (strncmp(buf, "setrecsrc ", strlen("setrecsrc ")) == 0) {
-                    if (current== mixctl_->getNumChannels() + 1)
+                    if (current== mixer->getNumChannels() + 1)
                         fprintf(stderr, "%s : Sorry, no current channel.\n", NAME);
                     else
-                        mixctl_->setRec(current, (strncmp(buf+strlen("setrecsrc "), "true", strlen("true")) == 0));
+                        mixer->setRec(current, (strncmp(buf+strlen("setrecsrc "), "true", strlen("true")) == 0));
                 }
             }
         } while (done == 0);
         fclose(rcfile);
-        mixctl_->writeRec();
+        mixer->writeRec();
     }
 }
 
@@ -377,45 +377,45 @@ void WMMixer::displayVersion() {
 //--------------------------------------------------------------------
 void WMMixer::pressEvent(XButtonEvent *xev) {
     bool forced_update = true;
-    int x = xev->x-(xhandler_->getWindowSize()/2-32);
-    int y = xev->y-(xhandler_->getWindowSize()/2-32);
+    int x = xev->x-(xhandler->getWindowSize()/2-32);
+    int y = xev->y-(xhandler->getWindowSize()/2-32);
 
-    if (xhandler_->isLeftButton(x, y)) {
-        if (current_channel_ < 1)
-            current_channel_ = num_channels_-1;
+    if (xhandler->isLeftButton(x, y)) {
+        if (current_channel < 1)
+            current_channel = num_channels-1;
         else
-            current_channel_--;
+            current_channel--;
 
-        xhandler_->setButtonState(xhandler_->getButtonState() | BTNPREV);
-        repeat_timer_ = 0;
-        xhandler_->drawBtns(BTNPREV, current_show_recording_);
+        xhandler->setButtonState(xhandler->getButtonState() | BTNPREV);
+        repeat_timer = 0;
+        xhandler->drawBtns(BTNPREV, current_show_recording);
     }
 
-    if (xhandler_->isRightButton(x, y)) {
-        current_channel_++;
-        if (current_channel_ >= num_channels_)
-            current_channel_ = 0;
+    if (xhandler->isRightButton(x, y)) {
+        current_channel++;
+        if (current_channel >= num_channels)
+            current_channel = 0;
 
-        xhandler_->setButtonState(xhandler_->getButtonState() | BTNNEXT);
-        repeat_timer_ = 0;
-        xhandler_->drawBtns(BTNNEXT, current_show_recording_);
+        xhandler->setButtonState(xhandler->getButtonState() | BTNNEXT);
+        repeat_timer = 0;
+        xhandler->drawBtns(BTNNEXT, current_show_recording);
     }
 
     // Volume settings
-    if (xhandler_->isVolumeBar(x, y)) {
+    if (xhandler->isVolumeBar(x, y)) {
         int vl = 0, vr = 0;
 
         if (xev->button < 4) {
             vl = ((60-y)*100)/(2*25);
             vr = vl;
-            dragging_ = true;
+            dragging = true;
         } else if (xev->button == 4) {
-            vr = mixctl_->getRight(channel_list_[current_channel_]) + wheel_scroll_;
-            vl = mixctl_->getLeft(channel_list_[current_channel_])  + wheel_scroll_;
+            vr = mixer->getRight(channel_list[current_channel]) + wheel_scroll;
+            vl = mixer->getLeft(channel_list[current_channel])  + wheel_scroll;
 
         } else if (xev->button == 5) {
-            vr = mixctl_->getRight(channel_list_[current_channel_]) - wheel_scroll_;
-            vl = mixctl_->getLeft(channel_list_[current_channel_])  - wheel_scroll_;
+            vr = mixer->getRight(channel_list[current_channel]) - wheel_scroll;
+            vl = mixer->getLeft(channel_list[current_channel])  - wheel_scroll;
         }
 
         if (vl <= 0)
@@ -424,32 +424,32 @@ void WMMixer::pressEvent(XButtonEvent *xev) {
             vr = 0;
 
         if (x <= 50)
-            mixctl_->setLeft(channel_list_[current_channel_], vl);
+            mixer->setLeft(channel_list[current_channel], vl);
         if (x >= 45)
-            mixctl_->setRight(channel_list_[current_channel_], vr);
-        mixctl_->writeVol(channel_list_[current_channel_]);
+            mixer->setRight(channel_list[current_channel], vr);
+        mixer->writeVol(channel_list[current_channel]);
 
         forced_update = false;
     }
 
     // Toggle record
-    if (xhandler_->isRecButton(x, y)) {
-        mixctl_->setRec(channel_list_[current_channel_], !mixctl_->readRec(channel_list_[current_channel_], false));
-        mixctl_->writeRec();
+    if (xhandler->isRecButton(x, y)) {
+        mixer->setRec(channel_list[current_channel], !mixer->readRec(channel_list[current_channel], false));
+        mixer->writeRec();
         forced_update = false;
     }
 
     // Toggle mute
-    if (xhandler_->isMuteButton(x, y)) {
-        if (mixctl_->isMuted(channel_list_[current_channel_])) {
-            xhandler_->setButtonState(xhandler_->getButtonState() & ~BTNMUTE);
-            mixctl_->unmute(channel_list_[current_channel_]);
+    if (xhandler->isMuteButton(x, y)) {
+        if (mixer->isMuted(channel_list[current_channel])) {
+            xhandler->setButtonState(xhandler->getButtonState() & ~BTNMUTE);
+            mixer->unmute(channel_list[current_channel]);
         } else {
-            mixctl_->mute(channel_list_[current_channel_]);
-            xhandler_->setButtonState(xhandler_->getButtonState() | BTNMUTE);
+            mixer->mute(channel_list[current_channel]);
+            xhandler->setButtonState(xhandler->getButtonState() | BTNMUTE);
         }
 
-        xhandler_->drawBtns(BTNMUTE, current_show_recording_);
+        xhandler->drawBtns(BTNMUTE, current_show_recording);
     }
 
     // Update volume display
@@ -458,41 +458,41 @@ void WMMixer::pressEvent(XButtonEvent *xev) {
 
 //--------------------------------------------------------------------
 void WMMixer::releaseEvent(XButtonEvent *xev) {
-    dragging_ = false;
-    xhandler_->setButtonState(xhandler_->getButtonState() & ~(BTNPREV | BTNNEXT));
-    xhandler_->drawBtns(BTNPREV | BTNNEXT, current_show_recording_);
-    xhandler_->repaint();
+    dragging = false;
+    xhandler->setButtonState(xhandler->getButtonState() & ~(BTNPREV | BTNNEXT));
+    xhandler->drawBtns(BTNPREV | BTNNEXT, current_show_recording);
+    xhandler->repaint();
 }
 
 //--------------------------------------------------------------------
 void WMMixer::motionEvent(XMotionEvent *xev) {
-    int x = xev->x-(xhandler_->getWindowSize()/2-32);
-    int y = xev->y-(xhandler_->getWindowSize()/2-32);
-    //  if(x >= 37 && x <= 56 && y >= 8 && dragging_){
-    if (xhandler_->isVolumeBar(x, y) && dragging_) {
+    int x = xev->x-(xhandler->getWindowSize()/2-32);
+    int y = xev->y-(xhandler->getWindowSize()/2-32);
+    //  if(x >= 37 && x <= 56 && y >= 8 && dragging){
+    if (xhandler->isVolumeBar(x, y) && dragging) {
         int v=((60-y)*100)/(2*25);
         if (v < 0)
             v = 0;
         if (x <= 50)
-            mixctl_->setLeft(channel_list_[current_channel_], v);
+            mixer->setLeft(channel_list[current_channel], v);
         if (x >= 45)
-            mixctl_->setRight(channel_list_[current_channel_], v);
-        mixctl_->writeVol(channel_list_[current_channel_]);
+            mixer->setRight(channel_list[current_channel], v);
+        mixer->writeVol(channel_list[current_channel]);
         checkVol(false);
     }
 }
 
 //--------------------------------------------------------------------
 void WMMixer::updateDisplay() {
-    xhandler_->update(channel_list_[current_channel_]);
-    if (mixctl_->getStereo(channel_list_[current_channel_])) {
-        xhandler_->drawLeft(current_channel_left_);
-        xhandler_->drawRight(current_channel_right_);
+    xhandler->update(channel_list[current_channel]);
+    if (mixer->getStereo(channel_list[current_channel])) {
+        xhandler->drawLeft(current_channel_left);
+        xhandler->drawRight(current_channel_right);
     } else {
-        xhandler_->drawMono(current_channel_right_);
+        xhandler->drawMono(current_channel_right);
     }
-    xhandler_->drawBtns(BTNREC | BTNNEXT | BTNPREV | BTNMUTE, current_show_recording_);
-    xhandler_->repaint();
+    xhandler->drawBtns(BTNREC | BTNNEXT | BTNPREV | BTNMUTE, current_show_recording);
+    xhandler->repaint();
 }
 
 

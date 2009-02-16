@@ -1,4 +1,4 @@
-// mixctl.h - MixCtl class provides control of audio mixer functions
+// mixer.h - Mixer class provides control of audio mixer functions
 //
 // Release 1.5
 // Copyright (C) 1998  Sam Hawker <shawkie@geocities.com>
@@ -8,10 +8,10 @@
 // under certain conditions
 // See the COPYING file for details.
 
-#include "mixctl.h"
+#include "mixer.h"
 
 //----------------------------------------------------------------------
-MixCtl::MixCtl(char *device_name):
+Mixer::Mixer(char *device_name):
     device_name(device_name), 
     mixer_device_number(0),
     modify_counter(-1)
@@ -23,18 +23,18 @@ MixCtl::MixCtl(char *device_name):
     loadChannels();
 }
 
-void MixCtl::openFD() {
+void Mixer::openFD() {
     if ((fd = open(device_name.c_str(), O_RDONLY | O_NONBLOCK)) == -1) {
         throw MixerException(device_name.c_str(), "Could not open file");
     }
 }
 
-void MixCtl::getOSSInfo() {
+void Mixer::getOSSInfo() {
     if (ioctl(fd, SNDCTL_SYSINFO, &sysinfo) == -1)
         throw MixerException(device_name.c_str(), "Could not get system information");
 }
 
-void MixCtl::newChannel(oss_mixext& ext, int shift, int value_mask) {
+void Mixer::newChannel(oss_mixext& ext, int shift, int value_mask) {
     channels.resize(channels.size() + 1);
     Channel& channel = channels.back();
     channel.num      = channels.size() - 1;
@@ -54,7 +54,7 @@ void MixCtl::newChannel(oss_mixext& ext, int shift, int value_mask) {
     channel.shift    = shift;
 }
 
-void MixCtl::loadChannels() {
+void Mixer::loadChannels() {
 #if OSS_VERSION >= 0x040004
     num_channels = mixer_device_number; // must init argument with device number
     if (ioctl(fd, SNDCTL_MIX_NREXT, &num_channels) == -1)
@@ -142,24 +142,24 @@ void MixCtl::loadChannels() {
 }
 
 //----------------------------------------------------------------------
-MixCtl::~MixCtl() {
+Mixer::~Mixer() {
     close(fd);
 }
 
 //----------------------------------------------------------------------
-bool MixCtl::isMuted(int channel) const {
+bool Mixer::isMuted(int channel) const {
     return channels[channel].muted;
 }
 
 //----------------------------------------------------------------------
-void MixCtl::mute(int channel) {
+void Mixer::mute(int channel) {
     channels[channel].muted = channels[channel].value;
     channels[channel].value = 0;
     writeVol(channel);
 }
 
 //----------------------------------------------------------------------
-void MixCtl::unmute(int channel) {
+void Mixer::unmute(int channel) {
     channels[channel].value = channels[channel].muted;
     channels[channel].muted = 0;
     writeVol(channel);
@@ -167,7 +167,7 @@ void MixCtl::unmute(int channel) {
 
 //----------------------------------------------------------------------
 // Read the value of all channels
-void MixCtl::doStatus() {
+void Mixer::doStatus() {
 #if OSS_VERSION < 0x040004
     ioctl(fd, SOUND_MIXER_READ_RECSRC, &recsrc);
 #endif
@@ -180,7 +180,7 @@ void MixCtl::doStatus() {
 }
 
 //----------------------------------------------------------------------
-void MixCtl::printChannel(int chan) {
+void Mixer::printChannel(int chan) {
     Channel& channel = channels[chan];
     if (channel.stereo) {
         printf("Mixer value for %d '%s' is %d (%d,%d)\n", chan, channel.label.c_str(), channel.value, getLeft(chan), getRight(chan));
@@ -192,7 +192,7 @@ void MixCtl::printChannel(int chan) {
 //----------------------------------------------------------------------
 // Return volume for a device, optionally reading it from device first.
 // Can be used as a way to avoid calling doStatus().
-void MixCtl::readVol(int chan) {
+void Mixer::readVol(int chan) {
     int value;
     Channel& channel = channels[chan];
 #if OSS_VERSION >= 0x040004
@@ -212,7 +212,7 @@ void MixCtl::readVol(int chan) {
 // Return left and right componenets of volume for a device.
 // If you are lazy, you can call readVol to read from the device, then these
 // to get left and right values.
-int MixCtl::getLeft(int chan) const {
+int Mixer::getLeft(int chan) const {
     const Channel& channel = channels[chan];
 #if OSS_VERSION >= 0x040004
     return ((channel.value & channel.value_mask)) * 100 / channel.maxvalue;
@@ -222,7 +222,7 @@ int MixCtl::getLeft(int chan) const {
 }
 
 //----------------------------------------------------------------------
-int MixCtl::getRight(int chan) const {
+int Mixer::getRight(int chan) const {
     const Channel& channel = channels[chan];
 #if OSS_VERSION >= 0x040004
     return ((channel.value >> channel.shift) & channel.value_mask) * 100 / channel.maxvalue;
@@ -233,7 +233,7 @@ int MixCtl::getRight(int chan) const {
 
 //----------------------------------------------------------------------
 // Write volume to device. Use setVolume, setLeft and setRight first.
-void MixCtl::writeVol(int chan) {
+void Mixer::writeVol(int chan) {
     Channel& channel = channels[chan];
 #if OSS_VERSION >= 0x040004
     oss_mixer_value val;
@@ -248,7 +248,7 @@ void MixCtl::writeVol(int chan) {
 }
 
 //----------------------------------------------------------------------
-void MixCtl::setLeft(int chan, int l) {
+void Mixer::setLeft(int chan, int l) {
     int r;
 #if OSS_VERSION >= 0x040004
     Channel& channel = channels[chan];
@@ -270,7 +270,7 @@ void MixCtl::setLeft(int chan, int l) {
 #endif
 }
 //----------------------------------------------------------------------
-void MixCtl::setRight(int chan, int r) {
+void Mixer::setRight(int chan, int r) {
     int l;
 #if OSS_VERSION >= 0x040004
     Channel& channel = channels[chan];
@@ -294,7 +294,7 @@ void MixCtl::setRight(int chan, int r) {
 
 //----------------------------------------------------------------------
 // Return record source value for a device, optionally reading it from device first.
-bool MixCtl::readRec(int chan, bool read) {
+bool Mixer::readRec(int chan, bool read) {
     if (read) {
         ioctl(fd, SOUND_MIXER_READ_RECSRC, &recsrc);
         channels[chan].recsrc = (recsrc & channels[chan].mask);
@@ -304,13 +304,13 @@ bool MixCtl::readRec(int chan, bool read) {
 
 //----------------------------------------------------------------------
 // Write record source values to device. Use setRec first.
-void MixCtl::writeRec() {
+void Mixer::writeRec() {
     ioctl(fd, SOUND_MIXER_WRITE_RECSRC, &recsrc);
 }
 
 //----------------------------------------------------------------------
 // Make a device (not) a record source.
-void MixCtl::setRec(int chan, bool rec) {
+void Mixer::setRec(int chan, bool rec) {
     if (rec) {
         if (caps & SOUND_CAP_EXCL_INPUT)
             recsrc = channels[chan].mask;
@@ -322,36 +322,36 @@ void MixCtl::setRec(int chan, bool rec) {
 }
 
 //----------------------------------------------------------------------
-const char* MixCtl::getDeviceName() const {
+const char* Mixer::getDeviceName() const {
     return device_name.c_str();
 }
 //----------------------------------------------------------------------
-unsigned MixCtl::getNumChannels() const {
+unsigned Mixer::getNumChannels() const {
     return channels.size();
 }
 //----------------------------------------------------------------------
-bool MixCtl::getSupport(int chan) const {
+bool Mixer::getSupport(int chan) const {
     return channels[chan].support;
 }
 //----------------------------------------------------------------------
-bool MixCtl::getStereo(int chan) const {
+bool Mixer::getStereo(int chan) const {
     return channels[chan].stereo;
 }
 //----------------------------------------------------------------------
-bool MixCtl::getRecords(int chan) const {
+bool Mixer::getRecords(int chan) const {
     return channels[chan].records;
 }
 //----------------------------------------------------------------------
-const char* MixCtl::getName(int chan) const {
+const char* Mixer::getName(int chan) const {
     return channels[chan].name.c_str();
 }
 //----------------------------------------------------------------------
-const char* MixCtl::getLabel(int chan) const {
+const char* Mixer::getLabel(int chan) const {
     return channels[chan].label.c_str();
 }
 
 //----------------------------------------------------------------------
-bool MixCtl::hasChanged() const {
+bool Mixer::hasChanged() const {
     struct mixer_info mixer_info;
     ioctl(fd, SOUND_MIXER_INFO, &mixer_info);
 

@@ -10,21 +10,16 @@
 
 
 #ifndef __wmmixer_h__
-#define __wmmixer_h_
+#define __wmmixer_h__
 
-// Input/Output
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <unistd.h>
 #include <getopt.h>
-
 #include <iostream>
-
 #include <X11/X.h>
-
-// WMMixer
-#include "mixctl.h"
+#include "mixer.h"
 #include "xhandler.h"
 #include "common.h"
 #include "exception.h"
@@ -34,29 +29,36 @@
 
 
 class WMMixer {
-protected:
+public:
+    WMMixer();
+    ~WMMixer();
 
+    void init(int, char **);
+    void loop();
+
+private:
     // Mixer
-    MixCtl *mixctl_;
+    Mixer *mixer;
 
     char     mixer_device[256];
-    unsigned num_channels_;
-    unsigned current_channel_;
-    unsigned current_channel_left_;
-    unsigned current_channel_right_;
-    bool     current_recording_;
-    bool     current_show_recording_;
+    unsigned num_channels;
+    unsigned current_channel;
+    unsigned current_channel_left;
+    unsigned current_channel_right;
+    bool     current_recording;
+    bool     current_show_recording;
 
-    XHandler *xhandler_;
+    XHandler *xhandler;
 
-    unsigned *channel_list_;
+    unsigned *channel_list;
 
-    int repeat_timer_;
+    int repeat_timer;
 
     // For draggable volume control
-    bool dragging_;
-// Default scroll amount
-    int wheel_scroll_;
+    bool dragging;
+
+    // Default scroll amount
+    int wheel_scroll;
 
     // Input/Output
     void readConfigurationFile();
@@ -73,14 +75,6 @@ protected:
     void initXHandler();
 
     void updateDisplay();
-
-public:
-    WMMixer();
-    ~WMMixer();
-
-    void init(int, char **);
-    void loop();
 };
-
 
 #endif //__wmmixer_h__

@@ -1,4 +1,4 @@
-// mixctl.h - MixCtl class provides control of audio mixer functions
+// mixer.h - Mixer class provides control of audio mixer functions
 //
 // Release 1.5
 // Copyright (C) 1998  Sam Hawker <shawkie@geocities.com>
@@ -8,8 +8,8 @@
 // under certain conditions
 // See the COPYING file for details.
 
-#ifndef __mixctl_h__
-#define __mixctl_h__
+#ifndef __mixer_h__
+#define __mixer_h__
 
 #include <cstdio>
 #include <cstdlib>
@@ -55,10 +55,10 @@ typedef struct {
 } Channel;
 
 //----------------------------------------------------------------------
-class MixCtl {
+class Mixer {
 public:
-    MixCtl(char *dname);
-    virtual ~MixCtl();
+    Mixer(char *dname);
+    virtual ~Mixer();
     void readVol(int);
     int getLeft(int) const;
     int getRight(int) const;
@@ -113,4 +113,4 @@ private:
     ChannelArray channels;
 };
 
-#endif // __mixctl_h__
+#endif // __mixer_h__

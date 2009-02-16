@@ -21,7 +21,7 @@ LD 	        = g++
 LDFLAGS     = -o $(EXECUTABLE) $(EXTRA_LIBDIRS) $(EXTRA_LIBS) $(CXXFLAGS)
 
 EXECUTABLE  = wmmixer
-OBJS	    = xhandler.o mixctl.o wmmixer.o exception.o
+OBJS	    = xhandler.o mixer.o wmmixer.o exception.o
 
 INSTALL = install
 INSTALL_FILE    = $(INSTALL) -D -p    -o root -g root  -m  644
