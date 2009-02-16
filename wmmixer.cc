@@ -80,7 +80,6 @@ void WMMixer::loop() {
                     else
                         current_channel_--;
                 }
-
                 checkVol(true);
                 repeat_timer_ = 0;
             }
@@ -159,21 +158,21 @@ void WMMixer::checkVol(bool forced = true) {
         updateDisplay();
     } else {
         if (nl != current_channel_left_ || nr != current_channel_right_ || nrec != current_recording_) {
-            if (nl!=current_channel_left_) {
+            if (nl != current_channel_left_) {
                 current_channel_left_ = nl;
                 if (mixctl_->getStereo(channel_list_[current_channel_]))
                     xhandler_->drawLeft(current_channel_left_);
                 else
                     xhandler_->drawMono(current_channel_left_);
             }
-            if (nr!=current_channel_right_) {
+            if (nr != current_channel_right_) {
                 current_channel_right_ = nr;
                 if (mixctl_->getStereo(channel_list_[current_channel_]))
                     xhandler_->drawRight(current_channel_right_);
                 else
                     xhandler_->drawMono(current_channel_left_);
             }
-            if (nrec!=current_recording_) {
+            if (nrec != current_recording_) {
                 current_recording_ = nrec;
                 if (nrec)
                     xhandler_->setButtonState(xhandler_->getButtonState() | BTNREC);
@@ -274,7 +273,7 @@ void WMMixer::readConfigurationFile() {
     unsigned current = mixctl_->getNumChannels() + 1;
 
     sprintf(rcfilen, "%s/.wmmixer", getenv("HOME"));
-    if ((rcfile = fopen(rcfilen, "r"))!=NULL) {
+    if ((rcfile = fopen(rcfilen, "r")) != NULL) {
         num_channels_ = 0;
         do {
             if (fgets(buf, 250, rcfile) == NULL){

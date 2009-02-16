@@ -74,17 +74,17 @@ void XHandler::init(int argc, char** argv, int num_channels) {
 
 //--------------------------------------------------------------------
 bool XHandler::isLeftButton(int x, int y) {
-    return(x>=BTN_LEFT_X && y>=BTN_LEFT_Y && x<=BTN_LEFT_X + BTN_WIDTH && y<=BTN_LEFT_Y + BTN_HEIGHT);
+    return x >= BTN_LEFT_X && y >= BTN_LEFT_Y && x <= BTN_LEFT_X + BTN_WIDTH && y <= BTN_LEFT_Y + BTN_HEIGHT;
 }
 
 //--------------------------------------------------------------------
 bool XHandler::isRightButton(int x, int y) {
-    return(x>=BTN_RIGHT_X && y>=BTN_RIGHT_Y && x<=BTN_RIGHT_X + BTN_WIDTH && y<=BTN_RIGHT_Y + BTN_HEIGHT);
+    return x >= BTN_RIGHT_X && y >= BTN_RIGHT_Y && x <= BTN_RIGHT_X + BTN_WIDTH && y <= BTN_RIGHT_Y + BTN_HEIGHT;
 }
 
 //--------------------------------------------------------------------
 bool XHandler::isMuteButton(int x, int y) {
-    return(x>=BTN_MUTE_X && y>=BTN_MUTE_Y && x<=BTN_MUTE_X + BTN_WIDTH && y<=BTN_MUTE_Y + BTN_HEIGHT);
+    return x >= BTN_MUTE_X && y >= BTN_MUTE_Y && x <= BTN_MUTE_X + BTN_WIDTH && y <= BTN_MUTE_Y + BTN_HEIGHT;
 }
 
 //--------------------------------------------------------------------
@@ -311,7 +311,6 @@ Atom XHandler::getDeleteWin() {
     return deleteWin;
 }
 
-
 //--------------------------------------------------------------------
 void XHandler::initIcons(int num) {
     if (icon_list_)
@@ -328,7 +327,7 @@ void XHandler::initIcons(int num) {
     icon_list_[6] = 4;
     icon_list_[7] = 5;
     icon_list_[8] = 3;
-    for (int counter=9; counter<num; counter++)
+    for (int counter = 9; counter < num; counter++)
         icon_list_[counter] = 9;
 }
 
