@@ -124,10 +124,12 @@ void WMMixer::initMixer() {
 
     for (unsigned count = 0; count < mixer->getNumChannels(); count++) {
         if (mixer->getSupport(count)) {
-            channel_list[num_channels]=count;
+            channel_list[num_channels] = count;
             num_channels++;
         }
     }
+
+    printf("Num channels = %d\n", num_channels);
 }
 
 
@@ -256,7 +258,7 @@ void WMMixer::parseArgs(int argc, char **argv) {
             sprintf(mixer_device, "%s", optarg);
             break;
         case 'r':
-            if (atoi(optarg)>0)
+            if (atoi(optarg) > 0)
                 wheel_scroll = atoi(optarg);
             break;
         }
@@ -266,24 +268,38 @@ void WMMixer::parseArgs(int argc, char **argv) {
 //--------------------------------------------------------------------
 void WMMixer::readConfigurationFile() {
     FILE *rcfile;
-    char rcfilen[256];
+    std::string rcfilename;
     char buf[256];
     int done;
-    //   int current=-1;
     unsigned current = mixer->getNumChannels() + 1;
 
-    sprintf(rcfilen, "%s/.wmmixer", getenv("HOME"));
-    if ((rcfile = fopen(rcfilen, "r")) != NULL) {
+    rcfilename = getenv("HOME");
+    rcfilename += "/.wmmixer";
+    if ((rcfile = fopen(rcfilename.c_str(), "r")) != NULL) {
         num_channels = 0;
         do {
             if (fgets(buf, 250, rcfile) == NULL){
-                fprintf(stderr, "%s : Could not read configuration file '%s'.\n", NAME, rcfilen);
+                fprintf(stderr, "%s : Could not read configuration file '%s'.\n", NAME, rcfilename.c_str());
                 return;
             }
             if ((done = feof(rcfile)) == 0) {
                 buf[strlen(buf)-1] = 0;
                 if (strncmp(buf, "addchannel ", strlen("addchannel ")) == 0) {
+#if OSS_VERSION >= 0x040004
+                    char name[512];
+                    int icon;
+                    int chan;
+                    sscanf(buf, "addchannel %511s %i", name, &icon);
+                    chan = mixer->find(name);
+                    if (chan == -1) {
+                        fprintf(stderr, "%s : Sorry, the channel (%s) could not be found. Run ossmix for a list of channels.\n", NAME, name);
+                        exit(-1);
+                    } else {
+                        current = (unsigned)chan;
+                    }
+#else
                     sscanf(buf, "addchannel %i", &current);
+#endif
                     if (current >= mixer->getNumChannels() || mixer->getSupport(current) == false) {
                         fprintf(stderr, "%s : Sorry, this channel (%i) is not supported.\n", NAME, current);
                         current = mixer->getNumChannels() + 1;
@@ -400,6 +416,8 @@ void WMMixer::pressEvent(XButtonEvent *xev) {
         repeat_timer = 0;
         xhandler->drawBtns(BTNNEXT, current_show_recording);
     }
+
+    printf("Current channel = %d out of %d\n", current_channel, num_channels);
 
     // Volume settings
     if (xhandler->isVolumeBar(x, y)) {

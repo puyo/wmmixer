@@ -71,7 +71,6 @@ void XHandler::init(int argc, char** argv, int num_channels) {
     initIcons(num_channels);
 }
 
-
 //--------------------------------------------------------------------
 bool XHandler::isLeftButton(int x, int y) {
     return x >= BTN_LEFT_X && y >= BTN_LEFT_Y && x <= BTN_LEFT_X + BTN_WIDTH && y <= BTN_LEFT_Y + BTN_HEIGHT;
@@ -315,9 +314,11 @@ Atom XHandler::getDeleteWin() {
 void XHandler::initIcons(int num) {
     if (icon_list)
         delete[] icon_list;
-
     icon_list = new unsigned[num];
-
+#if OSS_VERSION >= 0x040004
+    for (int i = 0; i < num; i++)
+        icon_list[i] = 0;
+#else
     icon_list[0] = 0;
     icon_list[1] = 7;
     icon_list[2] = 8;
@@ -329,6 +330,13 @@ void XHandler::initIcons(int num) {
     icon_list[8] = 3;
     for (int counter = 9; counter < num; counter++)
         icon_list[counter] = 9;
+#endif
+}
+
+//--------------------------------------------------------------------
+void XHandler::setIcon(int chan, int icon) {
+    if (0 <= icon && icon <= 9)
+        icon_list[chan] = icon;
 }
 
 //--------------------------------------------------------------------

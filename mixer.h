@@ -84,6 +84,8 @@ public:
     void mute(int);
     void unmute(int);
 
+    int find(const char *name);
+
 private:
     void openFD();
     void getOSSInfo();

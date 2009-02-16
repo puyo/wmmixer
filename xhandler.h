@@ -91,6 +91,7 @@ public:
     void setAfterStep();
     int  getWindowSize();
     Atom getDeleteWin();
+    void setIcon(int chan, int icon);
 
 private:
     int button_state;

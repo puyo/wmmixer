@@ -60,8 +60,6 @@ void Mixer::loadChannels() {
     if (ioctl(fd, SNDCTL_MIX_NREXT, &num_channels) == -1)
         throw MixerException(device_name.c_str(), "Could not read number of channels");
 
-    //printf("Mixer has %d channels\n", num_channels);
-
     channels.reserve(num_channels);
 
     int marker_seen = 0;
@@ -166,6 +164,18 @@ void Mixer::unmute(int channel) {
 }
 
 //----------------------------------------------------------------------
+int Mixer::find(const char *name) {
+    if (name == NULL)
+        return -1; // not found
+    for (unsigned i = 0; i < channels.size(); i++) {
+        Channel& channel = channels[i];
+        if (strncmp(channel.label.c_str(), name, strlen(name)) == 0)
+            return i;
+    }
+    return -1; // not found
+}
+
+//----------------------------------------------------------------------
 // Read the value of all channels
 void Mixer::doStatus() {
 #if OSS_VERSION < 0x040004
@@ -185,13 +195,12 @@ void Mixer::printChannel(int chan) {
     if (channel.stereo) {
         printf("Mixer value for %d '%s' is %d (%d,%d)\n", chan, channel.label.c_str(), channel.value, getLeft(chan), getRight(chan));
     } else {
-        printf("Mixer value for %d '%s' is %d\n", chan, channel.label.c_str(), channel.value);
+        printf("Mixer value for %d '%s' is %d (min %d, max %d)\n", chan, channel.label.c_str(), getLeft(chan), channel.minvalue, channel.maxvalue);
     }
 }
 
 //----------------------------------------------------------------------
-// Return volume for a device, optionally reading it from device first.
-// Can be used as a way to avoid calling doStatus().
+// Return a channel's volume.
 void Mixer::readVol(int chan) {
     int value;
     Channel& channel = channels[chan];
@@ -209,13 +218,11 @@ void Mixer::readVol(int chan) {
 }
 
 //----------------------------------------------------------------------
-// Return left and right componenets of volume for a device.
-// If you are lazy, you can call readVol to read from the device, then these
-// to get left and right values.
 int Mixer::getLeft(int chan) const {
     const Channel& channel = channels[chan];
 #if OSS_VERSION >= 0x040004
-    return ((channel.value & channel.value_mask)) * 100 / channel.maxvalue;
+    return ((channel.value & channel.value_mask)) 
+        * 100 / channel.maxvalue;
 #else
     return channel.value % 256;
 #endif
@@ -225,7 +232,8 @@ int Mixer::getLeft(int chan) const {
 int Mixer::getRight(int chan) const {
     const Channel& channel = channels[chan];
 #if OSS_VERSION >= 0x040004
-    return ((channel.value >> channel.shift) & channel.value_mask) * 100 / channel.maxvalue;
+    return ((channel.value >> channel.shift) & channel.value_mask) 
+        * 100 / channel.maxvalue;
 #else
     return channels[chan].value / 256;
 #endif
@@ -248,19 +256,22 @@ void Mixer::writeVol(int chan) {
 }
 
 //----------------------------------------------------------------------
+inline int scaleFromInput(int val, const Channel& channel) {
+    return (val * channel.maxvalue / 100) & channel.value_mask;
+}
+
+//----------------------------------------------------------------------
 void Mixer::setLeft(int chan, int l) {
     int r;
 #if OSS_VERSION >= 0x040004
     Channel& channel = channels[chan];
-    if (l > 100) l = 100;
-    l = (l * channel.maxvalue / 100) & channel.value_mask;
-    printf("Setting left of %d to %d (minvalue %d, maxvalue %d)\n", chan, l, channel.minvalue, channel.maxvalue);
+    l = scaleFromInput(l, channel);
     if (channel.stereo) {
-        r = (channel.value >> channel.shift) & channel.value_mask;
-        channel.value = l | (r << channel.shift);
+        r = (channel.value >> channel.shift) & channel.value_mask; // preserve
     } else {
-        channel.value = l;
+        r = l;
     }
+    channel.value = l | (r << channel.shift);
 #else
     if (channel.stereo)
         r = getRight(chan);
@@ -269,20 +280,19 @@ void Mixer::setLeft(int chan, int l) {
     channel.value = 256*r+l;
 #endif
 }
+
 //----------------------------------------------------------------------
 void Mixer::setRight(int chan, int r) {
     int l;
 #if OSS_VERSION >= 0x040004
     Channel& channel = channels[chan];
-    if (r > 100) r = 100;
-    r = (r * channel.maxvalue / 100) & channel.value_mask;
-    printf("Setting right of %d to %d (minvalue %d, maxvalue %d)\n", chan, r, channel.minvalue, channel.maxvalue);
+    r = scaleFromInput(r, channel);
     if (channel.stereo) {
-        l = channel.value & channel.value_mask;
-        channel.value = l | (r << channel.shift);
+        l = channel.value & channel.value_mask; // preserve
     } else {
-        channel.value = r;
+        l = r;
     }
+    channel.value = l | (r << channel.shift);
 #else
     if (channels[chan].stereo)
         l = getLeft(chan);
@@ -293,7 +303,8 @@ void Mixer::setRight(int chan, int r) {
 }
 
 //----------------------------------------------------------------------
-// Return record source value for a device, optionally reading it from device first.
+// Return record source value for a device, optionally reading it from device
+// first.
 bool Mixer::readRec(int chan, bool read) {
     if (read) {
         ioctl(fd, SOUND_MIXER_READ_RECSRC, &recsrc);
@@ -352,9 +363,14 @@ const char* Mixer::getLabel(int chan) const {
 
 //----------------------------------------------------------------------
 bool Mixer::hasChanged() const {
+#if OSS_VERSION >= 0x040004
+    oss_mixerinfo mixer_info;
+    mixer_info.dev = mixer_device_number;
+    ioctl(fd, SNDCTL_MIXERINFO, &mixer_info);
+#else
     struct mixer_info mixer_info;
     ioctl(fd, SOUND_MIXER_INFO, &mixer_info);
-
+#endif
     if (mixer_info.modify_counter == modify_counter) {
         return false;
     } else {
