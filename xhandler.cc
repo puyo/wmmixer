@@ -9,7 +9,7 @@
 // See the COPYING file for details.
 
 #include "xhandler.h"
-#include "mixer.h" // OSS_VERSION
+#include "mixer.h" // SOUND_VERSION
 
 //--------------------------------------------------------------------
 XHandler::XHandler() {
@@ -293,7 +293,7 @@ Atom XHandler::getDeleteWin() {
 
 //--------------------------------------------------------------------
 void XHandler::initIcons() {
-#if OSS_VERSION >= 0x040004
+#if SOUND_VERSION >= 0x040004
     // no defaults
 #else
     icon_list[0] = 0;

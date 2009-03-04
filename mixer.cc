@@ -16,8 +16,9 @@ Mixer::Mixer(const char *device_name):
     mixer_device_number(0),
     modify_counter(-1)
 {
+    printf("Compiled with OSS version %x\n", SOUND_VERSION);
     openFD();
-#if OSS_VERSION >= 0x040004
+#if SOUND_VERSION >= 0x040004
     getOSSInfo();
 #endif
     loadChannels();
@@ -29,6 +30,7 @@ void Mixer::openFD() {
     }
 }
 
+#if SOUND_VERSION >= 0x040004
 void Mixer::getOSSInfo() {
     if (ioctl(fd, SNDCTL_SYSINFO, &sysinfo) == -1)
         throw MixerException(device_name.c_str(), "Could not get system information");
@@ -40,8 +42,8 @@ void Mixer::newChannel(oss_mixext& ext, int shift, int value_mask) {
     channel.num      = channels.size() - 1;
     channel.support  = (ext.flags & MIXF_WRITEABLE) != 0;
     channel.ctrl     = ext.ctrl;
-    channel.stereo   = ext.type == MIXT_STEREOSLIDER ||
-        ext.type == MIXT_STEREOSLIDER16;
+    channel.stereo   = (ext.type == MIXT_STEREOSLIDER) ||
+        (ext.type == MIXT_STEREOSLIDER16);
     channel.records  = ext.flags & MIXF_RECVOL;
     channel.mask     = 0;
     channel.name     = ext.id;
@@ -53,9 +55,10 @@ void Mixer::newChannel(oss_mixext& ext, int shift, int value_mask) {
     channel.value_mask = value_mask;
     channel.shift    = shift;
 }
+#endif
 
 void Mixer::loadChannels() {
-#if OSS_VERSION >= 0x040004
+#if SOUND_VERSION >= 0x040004
     num_channels = mixer_device_number; // must init argument with device number
     if (ioctl(fd, SNDCTL_MIX_NREXT, &num_channels) == -1)
         throw MixerException(device_name.c_str(), "Could not read number of channels");
@@ -113,7 +116,7 @@ void Mixer::loadChannels() {
     ioctl(fd, SOUND_MIXER_READ_RECMASK, &recmask);
     ioctl(fd, SOUND_MIXER_READ_CAPS, &caps);
 
-    channels = new Channel[num_channels];
+    channels.reserve(num_channels);
     int mixmask = 1;
 
     for (unsigned count = 0; count < num_channels; count++) {
@@ -178,12 +181,12 @@ int Mixer::find(const char *name) {
 //----------------------------------------------------------------------
 // Read the value of all channels
 void Mixer::doStatus() {
-#if OSS_VERSION < 0x040004
+#if SOUND_VERSION < 0x040004
     ioctl(fd, SOUND_MIXER_READ_RECSRC, &recsrc);
 #endif
     for (unsigned i = 0; i < channels.size(); i++) {
         readVol(i);
-#if OSS_VERSION < 0x040004
+#if SOUND_VERSION < 0x040004
         channels[i].recsrc = (recsrc & channels[i].mask);
 #endif
     }
@@ -202,10 +205,11 @@ void Mixer::printChannel(int chan) {
 //----------------------------------------------------------------------
 // Return a channel's volume.
 void Mixer::readVol(int chan) {
-    int value;
     Channel& channel = channels[chan];
-#if OSS_VERSION >= 0x040004
+#if SOUND_VERSION >= 0x040004
+    int value;
     oss_mixer_value val;
+
     val.dev = mixer_device_number;
     val.ctrl = channel.ctrl;
     val.timestamp = channel.timestamp;
@@ -220,7 +224,7 @@ void Mixer::readVol(int chan) {
 //----------------------------------------------------------------------
 int Mixer::getLeft(int chan) const {
     const Channel& channel = channels[chan];
-#if OSS_VERSION >= 0x040004
+#if SOUND_VERSION >= 0x040004
     return ((channel.value & channel.value_mask)) 
         * 100 / channel.maxvalue;
 #else
@@ -230,8 +234,8 @@ int Mixer::getLeft(int chan) const {
 
 //----------------------------------------------------------------------
 int Mixer::getRight(int chan) const {
+#if SOUND_VERSION >= 0x040004
     const Channel& channel = channels[chan];
-#if OSS_VERSION >= 0x040004
     return ((channel.value >> channel.shift) & channel.value_mask) 
         * 100 / channel.maxvalue;
 #else
@@ -243,7 +247,7 @@ int Mixer::getRight(int chan) const {
 // Write volume to device. Use setVolume, setLeft and setRight first.
 void Mixer::writeVol(int chan) {
     Channel& channel = channels[chan];
-#if OSS_VERSION >= 0x040004
+#if SOUND_VERSION >= 0x040004
     oss_mixer_value val;
     val.dev = mixer_device_number;
     val.ctrl = channel.ctrl;
@@ -263,8 +267,8 @@ inline int scaleFromInput(int val, const Channel& channel) {
 //----------------------------------------------------------------------
 void Mixer::setLeft(int chan, int l) {
     int r;
-#if OSS_VERSION >= 0x040004
     Channel& channel = channels[chan];
+#if SOUND_VERSION >= 0x040004
     l = scaleFromInput(l, channel);
     if (channel.stereo) {
         r = (channel.value >> channel.shift) & channel.value_mask; // preserve
@@ -284,7 +288,7 @@ void Mixer::setLeft(int chan, int l) {
 //----------------------------------------------------------------------
 void Mixer::setRight(int chan, int r) {
     int l;
-#if OSS_VERSION >= 0x040004
+#if SOUND_VERSION >= 0x040004
     Channel& channel = channels[chan];
     r = scaleFromInput(r, channel);
     if (channel.stereo) {
@@ -363,18 +367,18 @@ const char* Mixer::getLabel(int chan) const {
 
 //----------------------------------------------------------------------
 bool Mixer::hasChanged() const {
-#if OSS_VERSION >= 0x040004
-    oss_mixerinfo mixer_info;
-    mixer_info.dev = mixer_device_number;
-    ioctl(fd, SNDCTL_MIXERINFO, &mixer_info);
+#if SOUND_VERSION >= 0x040004
+    oss_mixerinfo mixer_info1;
+    mixer_info1.dev = mixer_device_number;
+    ioctl(fd, SNDCTL_MIXERINFO, &mixer_info1);
 #else
-    struct mixer_info mixer_info;
-    ioctl(fd, SOUND_MIXER_INFO, &mixer_info);
+    struct mixer_info mixer_info1;
+    ioctl(fd, SOUND_MIXER_INFO, &mixer_info1);
 #endif
-    if (mixer_info.modify_counter == modify_counter) {
+    if (mixer_info1.modify_counter == modify_counter) {
         return false;
     } else {
-        modify_counter = mixer_info.modify_counter;
+        modify_counter = mixer_info1.modify_counter;
         return true;
     }
 }

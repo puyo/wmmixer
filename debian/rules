@@ -8,17 +8,17 @@
 
 include /usr/share/dpatch/dpatch.make
 
-CXXFLAGS = -Wall -g
+EXTRA_CXXFLAGS = -Wall -g
 ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
-  CXXFLAGS += -O0
+  EXTRA_CXXFLAGS += -O0
 else
-  CXXFLAGS += -O2
+  EXTRA_CXXFLAGS += -O2
 endif
 
 build: build-stamp
 build-stamp: patch-stamp
 	dh_testdir
-	$(MAKE) CXXFLAGS="$(CXXFLAGS)"
+	$(MAKE) EXTRA_CXXFLAGS="$(CXXFLAGS)"
 	touch build-stamp
 
 clean: unpatch

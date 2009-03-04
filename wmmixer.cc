@@ -280,7 +280,7 @@ void WMMixer::readConfigurationFile() {
         if ((done = feof(rcfile)) == 0) {
             buf[strlen(buf)-1] = 0;
             if (strncmp(buf, "addchannel ", strlen("addchannel ")) == 0) {
-#if OSS_VERSION >= 0x040004
+#if SOUND_VERSION >= 0x040004
                 char name[512];
                 int icon = 0;
                 int chan;

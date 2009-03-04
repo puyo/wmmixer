@@ -24,15 +24,13 @@
 #ifdef __NetBSD__
 #include <soundcard.h>
 #endif
-#ifdef __FreeBSD__
-#include <machine/soundcard.h>
-#endif
-#ifdef __linux__
-#include <soundcard.h>
+#if defined(__FreeBSD_) || defined(__FreeBSD_kernel__) || defined(__linux__)
+#include <sys/soundcard.h>
 #endif
 #include "exception.h"
 
 //----------------------------------------------------------------------
+
 typedef struct {
     bool support;
     bool stereo;
@@ -43,14 +41,14 @@ typedef struct {
     int value;
     int mask;
     int muted;
-#if OSS_VERSION >= 0x040004
-    int num;
     int minvalue;
     int maxvalue;
-    int ctrl;
-    int timestamp;
     int shift;
     int value_mask;
+#if SOUND_VERSION >= 0x040004
+    int num;
+    int ctrl;
+    int timestamp;
 #endif
 } Channel;
 
@@ -91,10 +89,12 @@ private:
     void getOSSInfo();
     void loadChannels();
     void doStatus();
+#if SOUND_VERSION >= 0x040004
     void newChannel(oss_mixext& ext, int shift, int value_mask);
+#endif
     void printChannel(int chan);
 
-#if OSS_VERSION >= 0x040004
+#if SOUND_VERSION >= 0x040004
     oss_sysinfo sysinfo;
     oss_mixerinfo mi;
 #endif
